@@ -10,9 +10,9 @@ int main(void) {
     
     // Main loop (runs forever)
     while(1) {
-        usart_transmit_char('A');
+        usart_print("Hello, UART!\n");
         _delay_ms(1000);
     }
     
-    return 0;  // Never reached in embedded systems
+    return 0; 
 }
