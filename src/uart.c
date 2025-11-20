@@ -1,15 +1,8 @@
-#define F_CPU 16000000UL
-#include <avr/io.h>
-#include <util/delay.h>
-#include <stdint.h>
+#include "uart.h"
 
-
-//CONSTANTS
-#define BAUD 9600
-#define BAUD_RATE ((F_CPU/(16*BAUD))-1)
 
 //initialize universal asynchronous receiver/transmitter
-static void uart_init() {
+void uart_init() {
   UBRR0H = 0; //USART baud rate register high bits
   UBRR0L = BAUD_RATE;                             // USART baud rate register low bits setting them to 
   UCSR0A = 0;                               //status & mode flags register
@@ -28,7 +21,7 @@ UDR0 = data; // UDRn is the buffer where the 8 bit is stored
 
 }
 
-void usart_transmit_int(unsigned int data){
+void usart_transmit_int(uint8_t data){
 
 /* Wait for empty transmit buffer */
 while (!(UCSR0A & (1<<UDRE0)));// UDREn: USART Data Register Empty
@@ -37,8 +30,22 @@ while (!(UCSR0A & (1<<UDRE0)));// UDREn: USART Data Register Empty
 UDR0 = data; // UDRn is the buffer where the 8 bit is stored
 
 }
+/*
+void usart_transmit_16int(uint16_t data){
+int8_t buf1;
 
+buf1 = data & 0x0F;
+data &= (8>>data);
 
+while (!(UCSR0A & (1<<UDRE0)));// UDREn: USART Data Register Empty
+for(int i =0;i<2;i++){
+
+UDR0 =
+}
+
+}
+
+*/
 void usart_print(char* string){
   while(*string){//until it reaches character null /0
     usart_transmit_char(*string);

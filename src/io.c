@@ -1,15 +1,7 @@
 
-#include <avr/io.h>
-#include <util/delay.h>
-#include <stdint.h>
+#include "io.h"
 
-// Constant for Timer1 50 Hz PWM (ICR mode)
-#define PWM_TOP 2500
-//pin assignment aren't final, I didn't have access to the arduino
-//initialize general input/output
 
-// Converter of [0;255] range of x to [0,PWM_top] range for OCR of Timer1 (16 bit)
-#define D1B(x) (uint16_t)(((x)*(uint32_t)(PWM_TOP))>>8)
 
 const uint16_t Servo_angle [256]={ //  +/-90 degrees
 85,85,85,85,85,85,85,85,85,85,85,85,85,85,85,85, // 0...15
@@ -34,11 +26,17 @@ const uint16_t Servo_angle [256]={ //  +/-90 degrees
 void timer1_50Hz_init(uint8_t en_IRQ) { //en_IRQ eanbles 
   TCCR1A|=(1<<COM1A1)|(1<<COM1B1); // non-inv PWM on channels A and B
   TCCR1B|=(1<<WGM13);  //PWM, Phase and Frequency Correct. TOP=ICR1.
-  ICR1=PWM_TOP; //50Hz PWM
+
+
+  ICR1=PWM_TOP; //50Hz PWM CHECK IF theres actually a hardware latch
   OCR1A=Servo_angle[127]; 
   OCR1B=0; 
-  TCCR1B|=((1<<CS11)|(1<<CS10)); //timer prescaler
-  if (en_IRQ) TIMSK1|=(1<<ICIE1); // enable Input Capture Interrupt. NOTE: the ISR MUST be defined!!! 
+
+
+  TCCR1B|=((1<<CS11)|(1<<CS10)|(1<<ICES1)); //timer prescaler
+  if (en_IRQ) {
+    TIMSK1|=(1<<ICIE1);
+  } // enable Input Capture Interrupt. NOTE: the ISR MUST be defined!!! 
 }
 
 uint16_t angleToTicks(uint8_t angle){
@@ -69,18 +67,27 @@ void timer0_init () {
 }
 
 void io_init() {
+  //P13 (INT1)
   DDRD |= (1 << DDD3);      //set pind3(lift fan) as output
-  PORTD |= (1 << PD3);                 //turn initial value of pind3 as on ie lift fan being on is the initial value
+  PORTD |= (1 << PD3);                 //turn initial value of pind3 as on ie lift fan being on is the initial value 
   
-  DDRD |= (1 << DDD6);                  //set pind6 (propulsion fan) as output
-  PORTD &= ~(1 <<PD6);                 //turn initial value of pind6 as off ie propulsion fan being turned off is the initial value
 
+  //P1 (PWM)
+  DDRD |= (1 << DDD5);                  //set pind6 (propulsion fan) as output
+  PORTD &= ~(1 <<PD5);                 //turn initial value of pind6 as off ie propulsion fan being turned off is the initial value DONT FORGET TO SET IT TO 1
+
+  //P9
   DDRB |= (1 << DDB1);      //set pinb1(servo) as output
   PORTB &= ~(1 << PB1);          //turn initial value of pinb1 as off ie servo motor being turned off is the initial value
 
-  DDRD &= ~(1 << DDD4);      //set pind4(ultrasonic sensor) as input
+  //P10
+  DDRB &= ~(1 << DDB0);      //set pind4(ultrasonic sensor) as input ECHO
+  //SET PULL UP RESISTOR VALUE TO 0
 
+  DDRB |= (1 << DDB5);      //set pind4(ultrasonic sensor) as output TRIG
+  PORTB &= ~(1 << PB5);  //turning off the trig pin by default
 
+  //P16
   DDRC &= ~(1 << DDC3);      //set pind4(infrared sensor) as input
 
 
@@ -88,8 +95,14 @@ void io_init() {
 }
 
 
-int read_Us(){
-  return PIND & (1<<PD4);
+void triggerReadingUs(){
+  //make sure that it starts low
+  PORTB &= ~(1 << PB5);
+  //Trig to High
+  PORTB |= (1<<PB5);
+  _delay_ms(10);
+  //Trig to Low
+  PORTB &= ~(1<<PB5);
 }
 
 
@@ -98,4 +111,12 @@ int read_Ir(){
   return PINC &(1<<PC3);
 
 
+}
+
+void stopPropFan(){
+  PORTD &= ~(1 <<PD5);
+}
+
+void startPropFan(){
+  PORTD |= (1<<PD5);
 }
