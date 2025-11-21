@@ -30,22 +30,17 @@ while (!(UCSR0A & (1<<UDRE0)));// UDREn: USART Data Register Empty
 UDR0 = data; // UDRn is the buffer where the 8 bit is stored
 
 }
-/*
+
 void usart_transmit_16int(uint16_t data){
-int8_t buf1;
+char buf[6];//where the number will go inside
+itoa(data,buf,10);//convert int into ascii so it can be outputted by UART
 
-buf1 = data & 0x0F;
-data &= (8>>data);
-
-while (!(UCSR0A & (1<<UDRE0)));// UDREn: USART Data Register Empty
-for(int i =0;i<2;i++){
-
-UDR0 =
-}
+char* string =buf;//making a pointer that points to the first element of that array
+  usart_print(string);//will print the sring
 
 }
 
-*/
+
 void usart_print(char* string){
   while(*string){//until it reaches character null /0
     usart_transmit_char(*string);

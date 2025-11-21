@@ -1,18 +1,17 @@
 #include "io.h"
 #include "uart.h"
+#include "adc.h"
 #include <avr/interrupt.h>
 #include <string.h>
 
 //DEFINES
-#define BAT_min 108
-//Vbatt min~=13.5V (ADC=108)
-#define BAT_warn 133
-//Vbatt warn~=14V (ADC=133)
+#define BAT_min 108//Vbatt min~=13.5V (ADC=108)
+#define BAT_warn 133//Vbatt warn~=14V (ADC=133)
 
 #define ADC_sample_max 4 //Number of ADC samples to average per channel. So every reading is a sample of 4 ADC samples
 
-#define DIST_TH 76   // Distance at where the IR sensor 1.5 *255/5 = 76
-
+#define BAR 51   / //10 cm is 0.25/5*1023 = 51
+#define FRONT_WALL 30
 
 
 //STRUCTS
@@ -21,7 +20,7 @@ static volatile struct {
   uint8_t ADC0;
   uint8_t ADC1;
   uint8_t ADC2;
-  uint8_t ADC3;
+  uint16_t ADC3;
   uint8_t ADC6;
   uint8_t ADC7;
 } ADC_data; 
@@ -37,12 +36,10 @@ struct Ultrasonic {
   //FLAGS
   volatile uint8_t unhandled_interrupt_flag = 0;
   volatile uint8_t icp_state = 0;   // 0 = waiting rising, 1 = waiting falling
-
   //VARIABLES
   int en_IRQ=1;
-  static volatile uint8_t  servo_idx, ADC_sample, V_batt;
-  volatile uint8_t unhandled_interrupt_flag = 0;
   extern const uint16_t Servo_angle [256];
+  volatile uint8_t irFlag=0;
  
 
   //INTERRUPTS
@@ -70,9 +67,17 @@ struct Ultrasonic {
       
   }
 
+  ISR(ADC_vect) { //if there is an interrupt that is not accounted for, set flag to 1
+     irFlag =1;
+     ADC_data.ADC3=ADC;// the compiler puts ADCH and ADCL inside of ADC
+  }
+
 int main(void) {
     //VARIABLES
     uint16_t distance_cm;
+    uint16_t distance_adc;
+    uint16_t distance_cm_ir;
+    uint16_t voltage;
     uint16_t ticks;
 
     //INITIALISATION
@@ -84,17 +89,28 @@ int main(void) {
     adc_init(3,1);
     
     // Main loop (runs forever)
-    while(1) {
+     while(1) {
       
         ticks=us.distance_ticks;
         distance_cm = (ticks *4)/58;
+        distance_adc =ADC_data.ADC3;
         triggerReadingUs();
 
-        if(us.doneUS==1){
+        if(irFlag==1){
+          irFlag=0;
+
+          if(distance_adc > 51){
+            stopPropFan(); 
+            stopLiftFan();
+            
+          }
+        }
+
+        if(us.doneUS==1){//main logic 
           us.doneUS=0;
 
           if(distance_cm<30){//if it detects a wall at 30 cm (arbitrary number)
-              PORTD &= ~(1 <<PD5); //stop propulsion fan
+              stopPropFan(); //stop propulsion fan
               //turn servo left 90 degrees
               us.doneUS=0;
               triggerReadingUs();
@@ -114,11 +130,16 @@ int main(void) {
 
 
             }
-          us.doneUS=0;
-        }
 
-        usart_print("Hello, UART!\n");
+        }
+        voltage =distance_adc/1023 * 5;
+        distance_cm_ir =27.61*(1/voltage)-0.169;
+        usart_print("Ultrasonic distance = ");
+        usart_transmit_16int(distance_cm);
         _delay_ms(1000);
+        usart_print("Infrared distance = ");
+        usart_transmit_16int(distance_cm_ir);
+        
     }
     
     return 0; 

@@ -106,15 +106,13 @@ void triggerReadingUs(){
 }
 
 
-int read_Ir(){
-
-  return PINC &(1<<PC3);
-
-
-}
 
 void stopPropFan(){
   PORTD &= ~(1 <<PD5);
+}
+
+void stopLiftFan(){
+  PORTD &= ~(1 <<PD3);
 }
 
 void startPropFan(){
