@@ -18,14 +18,14 @@ void timer1_50Hz_init(uint8_t en_IRQ);
 uint16_t angleToTicks(uint8_t angle);
 void set_servo_angle();
 void timer0_init ();
+void triggerReadingUs();
+
+void stopPropFan();
+
+void stopLiftFan();
+
+void startPropFan();
 void io_init();
-uint16_t read_Us();
-int read_Ir();
-
-
-
-
-
 
 
 #endif
