@@ -43,7 +43,7 @@ uint16_t angleToTicks(uint8_t angle){
   if (angle>180){
 angle=180;//error handling
 }
-  uint16_t pulse = 1000UL + ((uint32_t)angle*1000UL)/255UL;
+  uint16_t pulse = 1000UL + ((uint32_t)angle*1000UL)/180UL;
   return pulse*2;
 }
 
@@ -118,3 +118,4 @@ void stopLiftFan(){
 void startPropFan(){
   PORTD |= (1<<PD5);
 }
+
