@@ -19,7 +19,8 @@ uint16_t angleToTicks(uint8_t angle);
 void set_servo_angle();
 void timer0_init ();
 void triggerReadingUs();
-
+void timer1_init_for_timing();
+void int1_init();
 void stopPropFan();
 
 void stopLiftFan();

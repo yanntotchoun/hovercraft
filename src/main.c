@@ -7,7 +7,7 @@
 //DEFINES
 #define BAT_min 108//Vbatt min~=13.5V (ADC=108)
 #define BAT_warn 133//Vbatt warn~=14V (ADC=133)
-#define DEBUG 1  // Set to 1 for debugging prints
+#define DEBUG 1  // Set to 1 for debugging prints, 0 to disable
 #define ADC_sample_max 4 //Number of ADC samples to average per channel. So every reading is a sample of 4 ADC samples
 
 
@@ -30,23 +30,24 @@ struct Ultrasonic {
     uint16_t distance_ticks;
    volatile uint8_t doneUS;
 };
- volatile struct Ultrasonic us;
+ volatile struct Ultrasonic us= {0};//initialise every value to 0
 
 
 
 
   //FLAGS
   volatile uint8_t unhandled_interrupt_flag = 0;
-  volatile uint8_t icp_state = 0;   // 0 = waiting rising, 1 = waiting falling
+  volatile uint8_t int1_state = 0;   // 0 = waiting rising, 1 = waiting falling
+  
 
 
   //VARIABLES
-  const int16_t  BAR_TH = 51;   //10 cm is 0.25/5*1023 = 51, If upward sensor reads less than 15 cm, the bar is detected.
-  const int16_t FRONT_WALL = 30; // If front sensor reads less than 15 cm, a wall is detected
-  const int16_t SERVO_LEFT =0;
-  const int16_t SERVO_RIGHT =180;
-  const int16_t SERVO_DEFAULT =90;
-  const int8_t en_IRQ=1;
+  const uint16_t  BAR_TH = 51;   //10 cm is 0.25/5*1023 = 51, If upward sensor reads less than 15 cm, the bar is detected.
+  const uint16_t FRONT_WALL = 30; // If front sensor reads less than 15 cm, a wall is detected
+  const uint16_t SERVO_LEFT =0;
+  const uint16_t SERVO_RIGHT =180;
+  const uint16_t SERVO_DEFAULT =90;
+  const uint8_t en_IRQ=1;
   extern const uint16_t Servo_angle [256];
   volatile uint8_t irFlag=0;
  
@@ -61,26 +62,30 @@ struct Ultrasonic {
   }
 
 
+  ISR(INT1_vect) { // Interrupt that calculates the distance from the ultrasonic
+    uint16_t time= TCNT1 ;//Time at the edge found by the ICP counted by the counter
 
-  ISR(TIMER1_CAPT_vect) { // Interrupt that calculates the distance from the ultrasonic
-    uint16_t time= TCNT1;//Time at the edge found by the ICP counted by the counter
-
-    if(icp_state ==0){
+    if(int1_state ==0){
       us.startEcho = time;
-      icp_state =1;// we are now waiting for the falling edge
-      TCCR1B &= ~(1<<ICES1);//make sure that the time captured is the falling edfe
+      int1_state =1;// we are now waiting for the falling edge
 
-    }else if  (icp_state==1){
+       // next interrupt on falling edge: ISC11 = 1, ISC10 = 0
+        EICRA &= ~(1 << ISC10);
+        EICRA |=  (1 << ISC11);
+
+    }else if  (int1_state==1){
       us.endEcho =time;
       us.distance_ticks= us.endEcho - us.startEcho;
-      icp_state =0;// reset to rising edge
-
+      int1_state =0;// reset to rising edge
       us.doneUS=1;
-      TCCR1B |= (1<<ICES1);//make sure that the time captured is the rising edfe
+
+       // back to rising edge: ISC11=1, ISC10=1
+        EICRA |= (1 << ISC10) | (1 << ISC11);
 
     }
       
   }
+
 
 
   ISR(ADC_vect) { //if there is an interrupt that is not accounted for, set flag to 1
@@ -98,7 +103,6 @@ int main(void) {
     uint16_t distance_adc;
     uint16_t distance_cm_ir;
     float voltage;
-    uint16_t ticks;
     uint16_t left_cm=0;
     uint16_t right_cm=0; 
 
@@ -107,14 +111,14 @@ int main(void) {
     timer1_50Hz_init(en_IRQ);
     timer0_init ();
     io_init();
-    adc_init(3,1);
+    adc3_init(1);
+    int1_init();
     sei();//enabling global interrupt
 
     
     // Main loop (runs forever)
      while(1) {
   
-
         if(irFlag==1){
           irFlag=0;
            distance_adc =ADC_data.ADC3;
@@ -126,15 +130,25 @@ int main(void) {
         }
 
         triggerReadingUs();
+        uint32_t timeout = 60000;
+        while (!us.doneUS && timeout--) {
+            //the program will continue until timer reaches 0 or when a US pulse is found
+        }
 
-        if(us.doneUS==1){
-           us.doneUS=0;    
-            distance_cm = (us.distance_ticks *4)/58;
+        if(us.doneUS){   
+            uint16_t ticks = us.distance_ticks;
+            distance_cm = (ticks * 4U) / 58U;
+
+            #ifdef DEBUG  
+            usart_print("Echo: ticks=");
+            usart_transmit_16int(ticks);
+            usart_print("  cm=");
+            usart_transmit_16int(distance_cm);
+            usart_print("\r\n");
+            #endif
+
             if(distance_cm<FRONT_WALL){
-              stopPropFan();
-
-        
-           
+              stopPropFan();     
               set_servo_angle(SERVO_LEFT);
               us.doneUS=0; 
               triggerReadingUs();
@@ -158,23 +172,16 @@ int main(void) {
               }
                 startPropFan();
             }
+
+
         }
         
-        voltage =(distance_adc* 5.0f)/1023.0f;
-        if (voltage> 0.0f) {
-        float distance_cm_ir_f = 27.61f * (1.0f / voltage) - 0.169f;
-        if (distance_cm_ir_f < 0.0f) distance_cm_ir_f = 0.0f;
-        distance_cm_ir = (uint16_t)distance_cm_ir_f;
-      } else {
-        distance_cm_ir = 0;
-      }
-      
-        usart_print("Ultrasonic distance = ");
-        usart_transmit_16int(distance_cm);
-        usart_print("\r\n");
-        _delay_ms(1000);
+
+        
         usart_print("Infrared distance = ");
         usart_transmit_16int(distance_cm_ir);
+        usart_print("\r\n");
+        _delay_ms(3000);
         
     }
     

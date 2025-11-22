@@ -27,7 +27,7 @@ void timer1_50Hz_init(uint8_t en_IRQ) { //en_IRQ eanbles
   TCCR1A|=(1<<COM1A1)|(1<<COM1B1); // non-inv PWM on channels A and B
   TCCR1B|=(1<<WGM13);  //PWM, Phase and Frequency Correct. TOP=ICR1.
 
-
+  TCNT1 = 0;
   ICR1=PWM_TOP; //50Hz PWM CHECK IF theres actually a hardware latch
   OCR1A=Servo_angle[127]; 
   OCR1B=0; 
@@ -37,6 +37,13 @@ void timer1_50Hz_init(uint8_t en_IRQ) { //en_IRQ eanbles
   if (en_IRQ) {
     TIMSK1|=(1<<ICIE1);
   } // enable Input Capture Interrupt. NOTE: the ISR MUST be defined!!! 
+}
+
+void int1_init(void) {
+    // start with rising edge
+    EICRA |= (1 << ISC11) | (1 << ISC10);   // INT1 on rising edge
+    EIFR  |= (1 << INTF1);                  // clear any pending
+    EIMSK |= (1 << INT1);                   // enable INT1
 }
 
 uint16_t angleToTicks(uint8_t angle){
@@ -67,28 +74,35 @@ void timer0_init () {
 }
 
 void io_init() {
-  //P13 (INT1)
-  DDRD |= (1 << DDD3);      //set pind3(lift fan) as output
-  PORTD |= (1 << PD3);                 //turn initial value of pind3 as on ie lift fan being on is the initial value 
+  //P17 (INT1)
+  DDRD |= (1 << DDD7);      //set pind3(lift fan) as output
+  PORTD |= (1 << PD7);                 //turn initial value of pind3 as on ie lift fan being on is the initial value 
   
 
   //P1 (PWM)
   DDRD |= (1 << DDD5);                  //set pind6 (propulsion fan) as output
   PORTD &= ~(1 <<PD5);                 //turn initial value of pind6 as off ie propulsion fan being turned off is the initial value DONT FORGET TO SET IT TO 1
 
-  //P9
+  //P9 SERVO, output high
   DDRB |= (1 << DDB1);      //set pinb1(servo) as output
-  PORTB &= ~(1 << PB1);          //turn initial value of pinb1 as off ie servo motor being turned off is the initial value
+  PORTB &= ~(1 << PB1);     // Start low (will be controlled by PWM)
 
-  //P10
-  DDRB &= ~(1 << DDB0);      //set pind4(ultrasonic sensor) as input ECHO
-  //SET PULL UP RESISTOR VALUE TO 0
 
+  //P13
+  //ECHO(PD3), input, no pull-up
+  DDRD &= ~(1 << DDD3);      //set pind4(ultrasonic sensor) as input ECHO int1 as well
+  PORTD &= ~(1<<PD3);// not pull-up resistor
+
+  //TRIG(PB5), output,low
   DDRB |= (1 << DDB5);      //set pind4(ultrasonic sensor) as output TRIG
   PORTB &= ~(1 << PB5);  //turning off the trig pin by default
 
   //P16
   DDRC &= ~(1 << DDC3);      //set pind4(infrared sensor) as input
+  PORTC &= ~(1<<PC3);// not pull-up resistor
+
+  //P7
+  //IMU
 
 
   //Pull-up resistor assignment
@@ -98,10 +112,11 @@ void io_init() {
 void triggerReadingUs(){
   //make sure that it starts low
   PORTB &= ~(1 << PB5);
+  _delay_us(2);             // short settle
   //Trig to High
   PORTB |= (1<<PB5);
-  _delay_ms(10);
-  //Trig to Low
+  _delay_us(10);
+  //Trig t Low
   PORTB &= ~(1<<PB5);
 }
 
