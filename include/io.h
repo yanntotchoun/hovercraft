@@ -3,6 +3,7 @@
 
 #include <avr/io.h>
 #include <util/delay.h>
+#include <avr/interrupt.h>
 #include <stdint.h>
 // Constant for Timer1 50 Hz PWM (ICR mode)
 #define PWM_TOP 2500
@@ -13,14 +14,8 @@
 #define D1B(x) (uint16_t)(((x)*(uint32_t)(PWM_TOP))>>8)
 
 
-
-void timer1_50Hz_init(uint8_t en_IRQ);
-uint16_t angleToTicks(uint8_t angle);
-void set_servo_angle();
-void timer0_init ();
 void triggerReadingUs();
-void timer1_init_for_timing();
-void int1_init();
+
 void stopPropFan();
 
 void stopLiftFan();
