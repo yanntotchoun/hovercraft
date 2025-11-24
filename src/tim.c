@@ -22,6 +22,7 @@ const uint16_t Servo_angle [256]={ //  +/-90 degrees
 290,290,290,290,290,290,290,290,290,290,290,290,290,290,290,290  // 240...255 
 };
 
+
 static void timer1_reset(){
 //stop the timer during configuration
   TCCR1B = 0;

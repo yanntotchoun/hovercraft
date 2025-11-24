@@ -8,8 +8,24 @@
 //DEFINES
 #define BAT_min 108//Vbatt min~=13.5V (ADC=108)
 #define BAT_warn 133//Vbatt warn~=14V (ADC=133)
+#define DEBUG_ADC 0  // Set to 1 for debugging prints, 0 to disable
+#define DEBUG_US 1  // Set to 1 for debugging prints, 0 to disable
 #define DEBUG 1  // Set to 1 for debugging prints, 0 to disable
 #define ADC_sample_max 4 //Number of ADC samples to average per channel. So every reading is a sample of 4 ADC samples
+
+
+//INDEXES
+#define SERVO_LEFT_INDEX    90
+#define SERVO_CENTER_INDEX  127
+#define SERVO_RIGHT_INDEX   195
+
+
+#define US_LEFT_INDEX       16
+#define US_CENTER_INDEX     127
+#define US_RIGHT_INDEX      240
+
+
+
 
 
 
@@ -28,6 +44,7 @@ struct Flags{
   volatile uint8_t ovf_count;  // number of Timer1 overflows during pulse
   volatile uint8_t doneUS;//done with ultrasonic readings
   volatile uint8_t irFlag;//if IR is detected
+  volatile uint8_t turnDone;//to prevent ultrasonic to turning multiple time inside of the algorithm
 };
 
 volatile struct Flags flag= {0};//initialise every value to 0
@@ -44,15 +61,15 @@ struct Ultrasonic {
 
 
   //CONSTANTS
+    extern const uint16_t Servo_angle[256];
   const uint16_t  BAR_TH = 51;   //10 cm is 0.25/5*1023 = 51, If upward sensor reads less than 15 cm, the bar is detected.
   const uint16_t FRONT_WALL = 10; // If front sensor reads less than 15 cm, a wall is detected
   const uint16_t US_LEFT =0;
   const uint16_t US_RIGHT =180;
-  const uint16_t SERVO_DEFAULT =90;
-    const uint16_t SERVO_LEFT=60;
-    const uint16_t SERVO_RIGHT =120;
+ const uint16_t SERVO_LEFT=60;
+const uint16_t SERVO_RIGHT =120;
   const uint8_t en_IRQ=0;
-  extern const uint16_t Servo_angle [256];
+
  
 
  
@@ -112,14 +129,14 @@ ISR(INT0_vect) {
     }
 }
 
-void sweep_left(){
-                triggerReadingUs(); 
-                 _delay_ms(60);      // give sensor time before we start checking
+static void sweep_angle(uint16_t idx){
 
-                 // Simple timeout to avoid hanging if no echo
-                uint32_t timeout = 60000;
-                  while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
-
+    //LEFT SCAN
+                flag.doneUS     = 0;
+                flag.int1_state = 0;
+                OCR1A = Servo_angle[idx];          
+                 _delay_ms(500);
+               
 
 
 }
@@ -134,15 +151,13 @@ int main(void) {
     sei();                      //enable interrupts
 
     while (1) {
-        flag.doneUS     = 0;
-        flag.int1_state = 0;
        
        
-
+        /*
         if(flag.irFlag){
             uint8_t distance_ir=ADC_data.ADC3;
 
-             #ifdef DEBUG
+             #ifdef DEBUG_ADC
             usart_print("IR Reading");
             usart_transmit_16int(distance_ir);
             usart_print("\r\n");
@@ -154,7 +169,9 @@ int main(void) {
             }
             flag.irFlag=0;
         }
+        */
 
+        //FRONT SCAN
         flag.doneUS     = 0;
         flag.int1_state = 0;
 
@@ -165,64 +182,78 @@ int main(void) {
         uint32_t timeout = 60000;
         while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
 
-        if (flag.doneUS) {
-            uint16_t ticks = us.distance_ticks;
-            uint16_t distance_cm = (ticks * 4U) / 58U;
-            uint16_t distance_l=0;
-            uint16_t distance_r=0;
+            if (flag.doneUS) {
+                uint16_t ticks = us.distance_ticks;
+                uint16_t distance_cm = (ticks * 4U) / 58U;
+                uint16_t distance_l=0;
+                uint16_t distance_r=0;
+                flag.turnDone=0; 
+                
+                #ifdef DEBUG_US
+                usart_print("Echo: ticks=");
+                usart_transmit_16int(ticks);
+                usart_print("  cm=");
+                usart_transmit_16int(distance_cm);
+                usart_print("\r\n");
+                #endif
+
+                if(distance_cm<=FRONT_WALL&&!flag.turnDone){
+                    flag.turnDone=1; 
+
+                    stopPropFan();
+                    
+                    //LEFT SCAN
+                    sweep_angle(US_LEFT_INDEX);
+
+                    triggerReadingUs(); 
+                    _delay_ms(60);      // give sensor time before we start checking
             
-            #ifdef DEBUG
-            usart_print("Echo: ticks=");
-            usart_transmit_16int(ticks);
-            usart_print("  cm=");
-            usart_transmit_16int(distance_cm);
-            usart_print("\r\n");
-            #endif
+                    while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
 
-            if(distance_cm<=FRONT_WALL){
-                stopPropFan();
+                    uint16_t ticks_l = us.distance_ticks;
+                    distance_l = (ticks_l * 4U) / 58U;
+
+                    //RIGHT SCAN
                 
+                    sweep_angle(US_RIGHT_INDEX);
+
+                      #ifdef DEBUG
+                    usart_print("TURN RIGHT");
+                    usart_print("\r\n");
+                    #endif
+
+                    triggerReadingUs(); 
+                    _delay_ms(60);      // give sensor time before we start checking
+
+                    // Simple timeout to avoid hanging if no echo
+                        
+                    while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
+                    uint16_t ticks_r = us.distance_ticks;
+                    distance_r =  (ticks_r * 4U) / 58U;;
+
                     
-                set_servo_angle(US_LEFT);
+                    sweep_angle(SERVO_CENTER_INDEX);
+                      #ifdef DEBUG
+                    usart_print("LOGIC");
+                    usart_print("\r\n");
+                    #endif
+                    if(distance_l>distance_r){
+                        set_servo_angle(SERVO_RIGHT_INDEX);
 
-                triggerReadingUs(); 
-                _delay_ms(60);      // give sensor time before we start checking
-         
-                  while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
+                    }else{
+                            set_servo_angle(SERVO_LEFT_INDEX);
+                    }
+                    startPropFan();
+                }
 
-                  distance_l = ticks;
 
-                 set_servo_angle(US_RIGHT);
-
-                triggerReadingUs(); 
-                _delay_ms(60);      // give sensor time before we start checking
-
-                 // Simple timeout to avoid hanging if no echo
-                    
-                  while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
-
-                  distance_r = ticks;
-
-                
-                  set_servo_angle(SERVO_DEFAULT);
-
-                  if(distance_l>distance_r){
-                    set_servo_angle(SERVO_RIGHT);
-
-                  }else{
-                        set_servo_angle(SERVO_LEFT);
-                  }
-                startPropFan();
+            } else {
+                #ifdef DEBUG
+                usart_print("No echo (timeout)\r\n");
+                #endif
             }
 
-
-        } else {
-            #ifdef DEBUG
-            usart_print("No echo (timeout)\r\n");
-            #endif
-        }
-
-        _delay_ms(200);
+         _delay_ms(200);
     }
 
     return 0;
