@@ -10,19 +10,19 @@
 #define BAT_warn 133//Vbatt warn~=14V (ADC=133)
 #define DEBUG_ADC 0  // Set to 1 for debugging prints, 0 to disable
 #define DEBUG_US 1  // Set to 1 for debugging prints, 0 to disable
-#define DEBUG 1  // Set to 1 for debugging prints, 0 to disable
+#define DEBUG 0  // Set to 1 for debugging prints, 0 to disable
 #define ADC_sample_max 4 //Number of ADC samples to average per channel. So every reading is a sample of 4 ADC samples
 
 
 //INDEXES
-#define SERVO_LEFT_INDEX    90
+#define SERVO_LEFT_INDEX    1250
 #define SERVO_CENTER_INDEX  127
-#define SERVO_RIGHT_INDEX   195
+#define SERVO_RIGHT_INDEX   1750
 
 
-#define US_LEFT_INDEX       16
+#define US_LEFT_INDEX       2500
 #define US_CENTER_INDEX     127
-#define US_RIGHT_INDEX      240
+#define US_RIGHT_INDEX      500
 
 
 
@@ -44,7 +44,7 @@ struct Flags{
   volatile uint8_t ovf_count;  // number of Timer1 overflows during pulse
   volatile uint8_t doneUS;//done with ultrasonic readings
   volatile uint8_t irFlag;//if IR is detected
-  volatile uint8_t turnDone;//to prevent ultrasonic to turning multiple time inside of the algorithm
+  volatile uint8_t turnDone;//0: no wall yet ready to be trigerred, 1:wall detected don't trigger again until  to prevent ultrasonic to turning multiple time inside of the algorith
 };
 
 volatile struct Flags flag= {0};//initialise every value to 0
@@ -61,14 +61,14 @@ struct Ultrasonic {
 
 
   //CONSTANTS
-    extern const uint16_t Servo_angle[256];
+extern const uint16_t Servo_angle[256];
   const uint16_t  BAR_TH = 51;   //10 cm is 0.25/5*1023 = 51, If upward sensor reads less than 15 cm, the bar is detected.
-  const uint16_t FRONT_WALL = 10; // If front sensor reads less than 15 cm, a wall is detected
+  const uint16_t FRONT_WALL = 30; // If front sensor reads less than 15 cm, a wall is detected
   const uint16_t US_LEFT =0;
   const uint16_t US_RIGHT =180;
  const uint16_t SERVO_LEFT=60;
 const uint16_t SERVO_RIGHT =120;
-  const uint8_t en_IRQ=0;
+const uint8_t en_IRQ=0;
 
  
 
@@ -134,7 +134,7 @@ static void sweep_angle(uint16_t idx){
     //LEFT SCAN
                 flag.doneUS     = 0;
                 flag.int1_state = 0;
-                OCR1A = Servo_angle[idx];          
+                OCR1A = idx;          
                  _delay_ms(500);
                
 
@@ -187,7 +187,11 @@ int main(void) {
                 uint16_t distance_cm = (ticks * 4U) / 58U;
                 uint16_t distance_l=0;
                 uint16_t distance_r=0;
-                flag.turnDone=0; 
+
+                if (distance_cm > FRONT_WALL + 5) {
+                 flag.turnDone = 0;
+                }
+               
                 
                 #ifdef DEBUG_US
                 usart_print("Echo: ticks=");
@@ -201,10 +205,12 @@ int main(void) {
                     flag.turnDone=1; 
 
                     stopPropFan();
+                    //stopLiftFan();
                     
                     //LEFT SCAN
                     sweep_angle(US_LEFT_INDEX);
 
+                    timeout = 60000;
                     triggerReadingUs(); 
                     _delay_ms(60);      // give sensor time before we start checking
             
@@ -212,6 +218,14 @@ int main(void) {
 
                     uint16_t ticks_l = us.distance_ticks;
                     distance_l = (ticks_l * 4U) / 58U;
+                    
+                      #ifdef DEBUG_US
+                    usart_print("LEFT SENSOR: ticks=");
+                    usart_transmit_16int(ticks_l);
+                    usart_print("  cm=");
+                    usart_transmit_16int(distance_l);
+                    usart_print("\r\n");
+                    #endif
 
                     //RIGHT SCAN
                 
@@ -222,6 +236,7 @@ int main(void) {
                     usart_print("\r\n");
                     #endif
 
+                    timeout = 60000;
                     triggerReadingUs(); 
                     _delay_ms(60);      // give sensor time before we start checking
 
@@ -229,15 +244,25 @@ int main(void) {
                         
                     while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
                     uint16_t ticks_r = us.distance_ticks;
-                    distance_r =  (ticks_r * 4U) / 58U;;
+                    distance_r =  (ticks_r * 4U) / 58U;
+
+                      #ifdef DEBUG_US
+                    usart_print("RIGHT SENSOR: ticks=");
+                    usart_transmit_16int(ticks_r);
+                    usart_print("  cm=");
+                    usart_transmit_16int(distance_r);
+                    usart_print("\r\n");
+                    #endif
 
                     
                     sweep_angle(SERVO_CENTER_INDEX);
+
                       #ifdef DEBUG
                     usart_print("LOGIC");
                     usart_print("\r\n");
                     #endif
-                    if(distance_l>distance_r){
+
+                    if(distance_l>=distance_r){
                         set_servo_angle(SERVO_RIGHT_INDEX);
 
                     }else{
