@@ -9,6 +9,8 @@ extern volatile struct {
 	uint8_t TWI_ACK:1;
 } flags;
 
+#define SCL_CLOCK 400// to be changed
+
 extern volatile uint8_t TWI_status, TWI_byte;
 
 //=============================== TWI functions ======================
@@ -121,5 +123,12 @@ uint8_t Write_Reg(uint8_t TWI_addr, uint8_t reg_addr, uint8_t value){
 
 	return 0;
 }
+
+void twi_init(){
+// TWI init
+TWSR=0; // no prescaler
+TWBR=(uint8_t)(((F_CPU/SCL_CLOCK)-16)>>1);  //setting SCL; must be >10 for stable operation
+}
+
 
 //=============================== TWI functions end ===================

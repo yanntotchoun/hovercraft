@@ -2,6 +2,7 @@
 #include "uart.h"
 #include "adc.h"
 #include "tim.h"
+#include "i2c.h"
 #include <string.h>
 
 //DEFINES
@@ -15,13 +16,10 @@
 
 //STRUCTS
 
-static volatile struct {
-  uint8_t ADC0;
-  uint8_t ADC1;
-  uint8_t ADC2;
+static volatile struct {   
+    uint16_t acc;
   uint16_t ADC3;
-  uint8_t ADC6;
-  uint8_t ADC7;
+  volatile uint16_t sample;
 } ADC_data; 
 
 struct Flags{
@@ -29,6 +27,7 @@ struct Flags{
   volatile uint8_t int1_state;   // 0 = waiting rising, 1 = waiting falling
   volatile uint8_t ovf_count;  // number of Timer1 overflows during pulse
   volatile uint8_t doneUS;//done with ultrasonic readings
+  volatile uint8_t irFlag;//if IR is detected
 };
 
 volatile struct Flags flag= {0};//initialise every value to 0
@@ -54,9 +53,9 @@ struct Ultrasonic {
     const uint16_t SERVO_RIGHT =120;
   const uint8_t en_IRQ=0;
   extern const uint16_t Servo_angle [256];
-  volatile uint8_t irFlag=0;
  
 
+ 
 
 
 
@@ -74,12 +73,22 @@ struct Ultrasonic {
 ISR(TIMER1_CAPT_vect) { }
 
 
-
-
-
   ISR(ADC_vect) { //if there is an interrupt that is not accounted for, set flag to 1
-     irFlag =1;
-     ADC_data.ADC3=ADC;// the compiler puts ADCH and ADCL inside of ADC
+        if(ADC_data.sample==0){
+            ADC_data.acc=0;
+            ADC_data.sample++;
+            return;
+        }else if(ADC_data.sample<=ADC_sample_max){
+            ADC_data.acc+=ADCH;
+            ADC_data.sample++;
+            return;
+        }else if(ADC_data.sample>ADC_sample_max){
+
+            ADC_data.sample=0;
+            ADC_data.ADC3 = (uint8_t)ADC_data.acc/ADC_sample_max;
+            flag.irFlag =1;
+            return;
+        }
   }
 
 ISR(INT0_vect) {
@@ -127,6 +136,27 @@ int main(void) {
     while (1) {
         flag.doneUS     = 0;
         flag.int1_state = 0;
+       
+       
+
+        if(flag.irFlag){
+            uint8_t distance_ir=ADC_data.ADC3;
+
+             #ifdef DEBUG
+            usart_print("IR Reading");
+            usart_transmit_16int(distance_ir);
+            usart_print("\r\n");
+            #endif
+
+            if(distance_ir<BAR_TH){
+                stopLiftFan();
+                stopPropFan();
+            }
+            flag.irFlag=0;
+        }
+
+        flag.doneUS     = 0;
+        flag.int1_state = 0;
 
         triggerReadingUs(); 
         _delay_ms(60);      // give sensor time before we start checking
@@ -157,7 +187,6 @@ int main(void) {
 
                 triggerReadingUs(); 
                 _delay_ms(60);      // give sensor time before we start checking
-
          
                   while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
 

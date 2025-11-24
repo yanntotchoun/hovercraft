@@ -3,7 +3,7 @@
 
 void adc3_init (uint8_t en_IRQ) {
 // ADC init
-  ADMUX=((1<<ADLAR)|(3&0x0F)); // "left-aligned" result for easy 8-bit reading. 
+  ADMUX=((1<<ADLAR)|(3&0x0F)|(1<<REFS0)); // "left-aligned" result for easy 8-bit reading. 
   												// AVcc as Aref |(1<<REFS0)
   												// Sets ADC to the specified channel. Can be changed later.
   ADCSRA=(1<<ADEN); //Enables ADC
