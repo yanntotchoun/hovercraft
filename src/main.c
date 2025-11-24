@@ -36,7 +36,7 @@ volatile struct Flags flag= {0};//initialise every value to 0
 struct Ultrasonic {
     uint16_t startEcho;
     uint16_t endEcho;
-    uint16_t distance_ticks;
+    uint16_t distance_ticks;//distance of the ultrasonic pulse but in ticks
 };
  volatile struct Ultrasonic us= {0};//initialise every value to 0
 
@@ -44,12 +44,14 @@ struct Ultrasonic {
 
 
 
-  //VARIABLES
+  //CONSTANTS
   const uint16_t  BAR_TH = 51;   //10 cm is 0.25/5*1023 = 51, If upward sensor reads less than 15 cm, the bar is detected.
-  const uint16_t FRONT_WALL = 30; // If front sensor reads less than 15 cm, a wall is detected
-  const uint16_t SERVO_LEFT =0;
-  const uint16_t SERVO_RIGHT =180;
+  const uint16_t FRONT_WALL = 10; // If front sensor reads less than 15 cm, a wall is detected
+  const uint16_t US_LEFT =0;
+  const uint16_t US_RIGHT =180;
   const uint16_t SERVO_DEFAULT =90;
+    const uint16_t SERVO_LEFT=60;
+    const uint16_t SERVO_RIGHT =120;
   const uint8_t en_IRQ=0;
   extern const uint16_t Servo_angle [256];
   volatile uint8_t irFlag=0;
@@ -82,23 +84,35 @@ ISR(TIMER1_CAPT_vect) { }
 
 ISR(INT0_vect) {
   
-    uint16_t time = ((uint16_t)flag.ovf_count << 8) | TCNT0;
+    uint16_t time = ((uint16_t)flag.ovf_count << 8) | TCNT0;//time inside of the counter of time 0 (bit shifting so it is an 16 bit value to limit oveflows)
 
 
-    uint8_t echo_high = (PIND & (1 << PD2)) != 0;//variable to see the pin level of PD2
+    uint8_t echo_high = (PIND & (1 << PD2)) != 0;//variable to see the pin level of PD2 (falling edge and rising edge included)
 
     if (flag.int1_state == 0 && echo_high) {
         // Rising edge
-        us.startEcho = time;
+        us.startEcho = time;//time at the start of the echo pulse
         flag.int1_state = 1;
 
     } else if (flag.int1_state == 1 && !echo_high) {
         // Falling edge
-        us.endEcho = time;
+        us.endEcho = time;//time at the end of the echo pulse
         us.distance_ticks = us.endEcho - us.startEcho; 
-        flag.doneUS = 1;
-        flag.int1_state = 0;
+        flag.doneUS = 1;//done with the isr , the code continues inside of the main function
+        flag.int1_state = 0;// waiting for a rising edge
     }
+}
+
+void sweep_left(){
+                triggerReadingUs(); 
+                 _delay_ms(60);      // give sensor time before we start checking
+
+                 // Simple timeout to avoid hanging if no echo
+                uint32_t timeout = 60000;
+                  while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
+
+
+
 }
 
 int main(void) {
@@ -119,11 +133,13 @@ int main(void) {
 
         // Simple timeout to avoid hanging if no echo
         uint32_t timeout = 60000;
-        while (!flag.doneUS && timeout--) {}
+        while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
 
         if (flag.doneUS) {
             uint16_t ticks = us.distance_ticks;
             uint16_t distance_cm = (ticks * 4U) / 58U;
+            uint16_t distance_l=0;
+            uint16_t distance_r=0;
             
             #ifdef DEBUG
             usart_print("Echo: ticks=");
@@ -132,6 +148,43 @@ int main(void) {
             usart_transmit_16int(distance_cm);
             usart_print("\r\n");
             #endif
+
+            if(distance_cm<=FRONT_WALL){
+                stopPropFan();
+                
+                    
+                set_servo_angle(US_LEFT);
+
+                triggerReadingUs(); 
+                _delay_ms(60);      // give sensor time before we start checking
+
+         
+                  while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
+
+                  distance_l = ticks;
+
+                 set_servo_angle(US_RIGHT);
+
+                triggerReadingUs(); 
+                _delay_ms(60);      // give sensor time before we start checking
+
+                 // Simple timeout to avoid hanging if no echo
+                    
+                  while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
+
+                  distance_r = ticks;
+
+                
+                  set_servo_angle(SERVO_DEFAULT);
+
+                  if(distance_l>distance_r){
+                    set_servo_angle(SERVO_RIGHT);
+
+                  }else{
+                        set_servo_angle(SERVO_LEFT);
+                  }
+                startPropFan();
+            }
 
 
         } else {

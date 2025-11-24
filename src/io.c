@@ -1,7 +1,7 @@
 
 #include "io.h"
 
-void ultrasonic_init(){
+static void ultrasonic_init(){
   //P6
   //ECHO(PD2), input, no pull-up
    DDRD &= ~(1 << DDD2);
@@ -12,33 +12,33 @@ void ultrasonic_init(){
   PORTB &= ~(1 << PB3);
 
 }
-void propFan_init(){
+static void propFan_init(){
 
   //P1 (PWM)
   DDRD |= (1 << DDD5);                  //set pind6 (propulsion fan) as output
   PORTD &= ~(1 <<PD5);                 //turn initial value of pind6 as off ie propulsion fan being turned off is the initial value DONT FORGET TO SET IT TO 1
 }
 
-void liftFan_init(){
+static void liftFan_init(){
    //P17 (INT1)
   DDRD |= (1 << DDD7);      //set pind3(lift fan) as output
   PORTD |= (1 << PD7);                 //turn initial value of pind3 as on ie lift fan being on is the initial value 
 }
 
-void servo_init(){
+static void servo_init(){
     //P9 SERVO, output high
   DDRB |= (1 << DDB1);      //set pinb1(servo) as output
   PORTB &= ~(1 << PB1);     // Start low (will be controlled by PWM)
 
 }
 
-void ir_init(){
+static void ir_init(){
   //P16
   DDRC &= ~(1 << DDC3);      //set pind4(infrared sensor) as input
   PORTC &= ~(1<<PC3);// not pull-up resistor
 }
 
-void imu_init(){
+static void imu_init(){
   //P7
   DDRC &= ~((1<<PC4)|(1<<PC5));   // inputs
   PORTC |=  (1<<PC4)|(1<<PC5);    // weak pull-ups (replaced by external 4.7k on board)

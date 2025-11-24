@@ -22,32 +22,31 @@ const uint16_t Servo_angle [256]={ //  +/-90 degrees
 290,290,290,290,290,290,290,290,290,290,290,290,290,290,290,290  // 240...255 
 };
 
-void timer1_reset(){
+static void timer1_reset(){
 //stop the timer during configuration
   TCCR1B = 0;
   TCCR1A = 0;
   TCNT1 = 0;
   //clearing all of these registers to 0
 }
-void timer1_pwm(){
+static void timer1_pwm(){
   TCCR1A|=(1<<COM1A1)|(1<<COM1B1); // non-inv PWM on channels A and B
   TCCR1B|=(1<<WGM13);  //PWM, Phase and Frequency Correct. TOP=ICR1.
   ICR1=PWM_TOP; //50Hz PWM CHECK IF theres actually a hardware latch
 }
 
-void timer1_setup_servo(){
+static void timer1_setup_servo(){
     OCR1A=Servo_angle[127]; //put servo in neutral stare
   OCR1B=0; 
 }
 
-void timer1_interrupts(){
+static void timer1_interrupts(){
   //clearing all of the interrupts
   
   TIMSK1 = 0; 
   TIMSK2 = 0;
   // Enable Timer1 Overflow Interrupt
    // TIMSK1 |= (1 << TOIE1);
-
 }
 
 
@@ -63,16 +62,6 @@ void timer1_50Hz_init(uint8_t en_IRQ) { //en_IRQ enables
   } // enable Input Capture Interrupt. NOTE: the ISR MUST be defined!!! 
 }
 
-
-
-void int1_init(void) {
-   // trigger INT1 on any logical change
-    EICRA |= (1 << ISC11) | (1 << ISC10);
-
-
-   EIFR  |= (1 << INTF1); // clear pending
-   EIMSK |= (1 << INT1);  // enable INT1
-}
 
 
 void int0_init(void){
@@ -103,13 +92,13 @@ OCR1A = angleToTicks(angle);
 
  
 void timer0_init () { 
-// Normal mode, no PWM
-    TCCR0A = 0;
+
+    TCCR0A = 0;// free running no pwm complicating the math of the us
     // Prescaler 64 -> 16 MHz / 64 = 250 kHz -> 4 us per tick
-    TCCR0B = (1 << CS01) | (1 << CS00);
+    TCCR0B = (1 << CS01) | (1 << CS00); // Prescaler 64 -> 16 MHz / 64 = 250 kHz -> 4 us per tick
     
     TCNT0  = 0;
 
-    // Enable Timer0 overflow interrupt
-    TIMSK0 |= (1 << TOIE0);
+
+    TIMSK0 |= (1 << TOIE0);// Enable Timer0 overflow interrupt
 }
