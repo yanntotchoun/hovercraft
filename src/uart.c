@@ -3,10 +3,12 @@
 
 //initialize universal asynchronous receiver/transmitter
 void uart_init() {
-  UBRR0H = 0; //USART baud rate register high bits
-  UBRR0L = BAUD_RATE;                             // USART baud rate register low bits setting them to 
+  // Set baud
+  UBRR0H = (uint8_t)(BAUD_RATE >> 8);
+  UBRR0L = (uint8_t)(BAUD_RATE & 0xFF); 
+
   UCSR0A = 0;                               //status & mode flags register
-  UCSR0B = (1 << TXEN0)| (1<<RXEN0);                    //enable bits (turn TX/RX on) TXEN0: Transmitter Enable & RXEN0: Receiver Enable 
+  UCSR0B = (1 << TXEN0);                    //enable bits (turn TX on)
   UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);   // setting the transmitted bits as 8-bit because if UCSZ01 & UCSz00 = 1 at the same time then it's 8 bits
 }
 
@@ -31,14 +33,26 @@ UDR0 = data; // UDRn is the buffer where the 8 bit is stored
 
 }
 
-void usart_transmit_16int(uint16_t data){
-char buf[6];//where the number will go inside
-itoa(data,buf,10);//convert int into ascii so it can be outputted by UART
+void usart_transmit_16int(uint16_t v) {
+   char buf[6];
+   uint8_t i = 0;
 
-char* string =buf;//making a pointer that points to the first element of that array
-  usart_print(string);//will print the sring
 
+   if (v == 0) {
+       usart_transmit_char('0');
+       return;
+   }
+
+
+   while (v > 0) {
+       buf[i++] = '0' + (v % 10);
+       v /= 10;
+   }
+   while (i--) {
+      usart_transmit_char(buf[i]);
+   }
 }
+
 
 
 void usart_print(char* string){

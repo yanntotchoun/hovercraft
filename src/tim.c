@@ -42,11 +42,11 @@ void timer1_setup_servo(){
 
 void timer1_interrupts(){
   //clearing all of the interrupts
-  TIMSK0 = 0;
+  
   TIMSK1 = 0; 
   TIMSK2 = 0;
   // Enable Timer1 Overflow Interrupt
-    TIMSK1 |= (1 << TOIE1);
+   // TIMSK1 |= (1 << TOIE1);
 
 }
 
@@ -64,28 +64,29 @@ void timer1_50Hz_init(uint8_t en_IRQ) { //en_IRQ enables
 }
 
 
-/*
+
 void int1_init(void) {
    // trigger INT1 on any logical change
-    EICRA &= ~((1<<ISC11)|(1<<ISC10));
-    EICRA |=  (1<<ISC10);   // ISC11=0, ISC10=1 → any change mode
+    EICRA |= (1 << ISC11) | (1 << ISC10);
 
 
-    EIFR  |= (1 << INTF1);//clears old int1 interrupts
-    EIMSK |= (1 << INT1);
+   EIFR  |= (1 << INTF1); // clear pending
+   EIMSK |= (1 << INT1);  // enable INT1
 }
-*/
+
 
 void int0_init(void){
-    // trigger INT1 on any logical change
-    EICRA &= ~((1<<ISC01) | (1<<ISC00));  // clear INT0 sense bits only
-    EICRA |=  (1<<ISC10);   // ISC11=0, ISC10=1 → any change mode
+   // INT0 on PD2
+    // Any logical change: ISC01=0, ISC00=1
+    EICRA &= ~((1 << ISC01) | (1 << ISC00));  // clear INT0 sense bits
+    EICRA |=  (1 << ISC00);                   // any change mode
 
-     EIFR  |= (1 << INTF0);//clears old int0 interrupts
-    EIMSK |= (1 << INT0);
+    EIFR  |= (1 << INTF0); // clear any pending INT0 flag
+    EIMSK |= (1 << INT0);  // enable INT0
 
 
 }
+
 uint16_t angleToTicks(uint8_t angle){
   if (angle>180){
 angle=180;//error handling
@@ -102,10 +103,13 @@ OCR1A = angleToTicks(angle);
 
  
 void timer0_init () { 
-// ======= PWM2 and D4 control (8-bit timer0) ===================
-  TCCR0A|=(1<<COM0A1)|(1<<COM0B1); //Clear on Compare Match when up-counting. Set on Compare Match when down-counting.  
-  TCCR0A|=(1<<WGM00);  //PWM, Phase Correct            
-  OCR0A=0; 
-  OCR0B=0; 
-  TCCR0B|=((1<<CS01)|(1<<CS00)); 
+// Normal mode, no PWM
+    TCCR0A = 0;
+    // Prescaler 64 -> 16 MHz / 64 = 250 kHz -> 4 us per tick
+    TCCR0B = (1 << CS01) | (1 << CS00);
+    
+    TCNT0  = 0;
+
+    // Enable Timer0 overflow interrupt
+    TIMSK0 |= (1 << TOIE0);
 }

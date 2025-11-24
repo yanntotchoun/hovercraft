@@ -1,7 +1,7 @@
 #include "io.h"
 #include "uart.h"
 #include "adc.h"
-#include <avr/interrupt.h>
+#include "tim.h"
 #include <string.h>
 
 //DEFINES
@@ -24,21 +24,24 @@ static volatile struct {
   uint8_t ADC7;
 } ADC_data; 
 
+struct Flags{
+  volatile uint8_t unhandled_interrupt_flag;// if something bad happens
+  volatile uint8_t int1_state;   // 0 = waiting rising, 1 = waiting falling
+  volatile uint8_t ovf_count;  // number of Timer1 overflows during pulse
+  volatile uint8_t doneUS;//done with ultrasonic readings
+};
+
+volatile struct Flags flag= {0};//initialise every value to 0
+ 
 struct Ultrasonic {
     uint16_t startEcho;
     uint16_t endEcho;
     uint16_t distance_ticks;
-   volatile uint8_t doneUS;
 };
  volatile struct Ultrasonic us= {0};//initialise every value to 0
 
 
 
-
-  //FLAGS
-  volatile uint8_t unhandled_interrupt_flag = 0;
-  volatile uint8_t int1_state = 0;   // 0 = waiting rising, 1 = waiting falling
-  
 
 
   //VARIABLES
@@ -47,7 +50,7 @@ struct Ultrasonic {
   const uint16_t SERVO_LEFT =0;
   const uint16_t SERVO_RIGHT =180;
   const uint16_t SERVO_DEFAULT =90;
-  const uint8_t en_IRQ=1;
+  const uint8_t en_IRQ=0;
   extern const uint16_t Servo_angle [256];
   volatile uint8_t irFlag=0;
  
@@ -58,33 +61,17 @@ struct Ultrasonic {
 
   //INTERRUPTS
   ISR(__vector_default) { //if there is an interrupt that is not accounted for, set flag to 1
-     unhandled_interrupt_flag =1;
+     flag.unhandled_interrupt_flag =1;
   }
 
-
-  ISR(INT1_vect) { // Interrupt that calculates the distance from the ultrasonic
-    uint16_t time= TCNT1 ;//Time at the edge found by the ICP counted by the counter
-
-    if(int1_state ==0){
-      us.startEcho = time;
-      int1_state =1;// we are now waiting for the falling edge
-
-       // next interrupt on falling edge: ISC11 = 1, ISC10 = 0
-        EICRA &= ~(1 << ISC10);
-        EICRA |=  (1 << ISC11);
-
-    }else if  (int1_state==1){
-      us.endEcho =time;
-      us.distance_ticks= us.endEcho - us.startEcho;
-      int1_state =0;// reset to rising edge
-      us.doneUS=1;
-
-       // back to rising edge: ISC11=1, ISC10=1
-        EICRA |= (1 << ISC10) | (1 << ISC11);
-
+ ISR(TIMER0_OVF_vect) {// to prevent negative ticks from happenning
+    if (flag.int1_state == 1) {
+        flag.ovf_count++;// because it is the only time that we are recording the pulse is when we are wiating for rising
     }
-      
-  }
+}
+ISR(TIMER1_CAPT_vect) { }
+
+
 
 
 
@@ -93,53 +80,52 @@ struct Ultrasonic {
      ADC_data.ADC3=ADC;// the compiler puts ADCH and ADCL inside of ADC
   }
 
+ISR(INT0_vect) {
+  
+    uint16_t time = ((uint16_t)flag.ovf_count << 8) | TCNT0;
 
 
+    uint8_t echo_high = (PIND & (1 << PD2)) != 0;//variable to see the pin level of PD2
 
+    if (flag.int1_state == 0 && echo_high) {
+        // Rising edge
+        us.startEcho = time;
+        flag.int1_state = 1;
+
+    } else if (flag.int1_state == 1 && !echo_high) {
+        // Falling edge
+        us.endEcho = time;
+        us.distance_ticks = us.endEcho - us.startEcho; 
+        flag.doneUS = 1;
+        flag.int1_state = 0;
+    }
+}
 
 int main(void) {
-    //VARIABLES
-    uint16_t distance_cm;
-    uint16_t distance_adc;
-    uint16_t distance_cm_ir;
-    float voltage;
-    uint16_t left_cm=0;
-    uint16_t right_cm=0; 
+    uart_init();                // initialisation of UART
+    timer1_50Hz_init(en_IRQ);   // Servo PWM
+    timer0_init();              // Timer0 (Free running) US
+    io_init();                  // initialiastion of gpio
+    adc3_init(1);             
+    int0_init();                
+    sei();                      //enable interrupts
 
-    //INITIALISATION
-    uart_init();  // Initialize UART
-    timer1_50Hz_init(en_IRQ);
-    timer0_init ();
-    io_init();
-    adc3_init(1);
-    int1_init();
-    sei();//enabling global interrupt
+    while (1) {
+        flag.doneUS     = 0;
+        flag.int1_state = 0;
 
-    
-    // Main loop (runs forever)
-     while(1) {
-  
-        if(irFlag==1){
-          irFlag=0;
-           distance_adc =ADC_data.ADC3;
-          if(distance_adc > BAR_TH){
-            stopPropFan(); 
-            stopLiftFan();
-            
-          }
-        }
+        triggerReadingUs(); 
+        _delay_ms(60);      // give sensor time before we start checking
 
-        triggerReadingUs();
+        // Simple timeout to avoid hanging if no echo
         uint32_t timeout = 60000;
-        while (!us.doneUS && timeout--) {
-            //the program will continue until timer reaches 0 or when a US pulse is found
-        }
+        while (!flag.doneUS && timeout--) {}
 
-        if(us.doneUS){   
+        if (flag.doneUS) {
             uint16_t ticks = us.distance_ticks;
-            distance_cm = (ticks * 4U) / 58U;
-
-            #ifdef DEBUG  
+            uint16_t distance_cm = (ticks * 4U) / 58U;
+            
+            #ifdef DEBUG
             usart_print("Echo: ticks=");
             usart_transmit_16int(ticks);
             usart_print("  cm=");
@@ -147,43 +133,15 @@ int main(void) {
             usart_print("\r\n");
             #endif
 
-            if(distance_cm<FRONT_WALL){
-              stopPropFan();     
-              set_servo_angle(SERVO_LEFT);
-              us.doneUS=0; 
-              triggerReadingUs();
-              while(us.doneUS==0);
-              left_cm = (us.distance_ticks *4)/58;
-              
 
-              set_servo_angle(SERVO_RIGHT);
-              us.doneUS=0; 
-              triggerReadingUs();
-              while(us.doneUS==0);
-              right_cm = (us.distance_ticks *4)/58;
-
-
-              set_servo_angle(SERVO_DEFAULT);
-
-              if(left_cm>right_cm){
-                  set_servo_angle(SERVO_LEFT);
-              }else{
-                  set_servo_angle(SERVO_RIGHT);
-              }
-                startPropFan();
-            }
-
-
+        } else {
+            #ifdef DEBUG
+            usart_print("No echo (timeout)\r\n");
+            #endif
         }
-        
 
-        
-        usart_print("Infrared distance = ");
-        usart_transmit_16int(distance_cm_ir);
-        usart_print("\r\n");
-        _delay_ms(3000);
-        
+        _delay_ms(200);
     }
-    
-    return 0; 
+
+    return 0;
 }

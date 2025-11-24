@@ -9,7 +9,7 @@
 
 
 //DEFINES
-#define BAUD 9600
+#define BAUD 9600UL
 #define BAUD_RATE ((F_CPU/(16UL*BAUD))-1)
 
 

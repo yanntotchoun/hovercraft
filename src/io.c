@@ -4,12 +4,13 @@
 void ultrasonic_init(){
   //P6
   //ECHO(PD2), input, no pull-up
-  DDRD &= ~(1 << DDD2);      //set pind4(ultrasonic sensor) as input ECHO int1 as well
-  PORTD &= ~(1<<PD2);// not pull-up resistor
+   DDRD &= ~(1 << DDD2);
+   PORTD &= ~(1 << PD2);
 
    //TRIG(PB5), output,low
-  DDRB |= (1 << DDB3);      //set pind4(ultrasonic sensor) as output TRIG
-  PORTB &= ~(1 << PB3);  //turning off the trig pin by default
+  DDRB  |= (1 << DDB3);
+  PORTB &= ~(1 << PB3);
+
 }
 void propFan_init(){
 
@@ -67,13 +68,13 @@ void io_init() {
 
 void triggerReadingUs(){
   //make sure that it starts low
-  PORTB &= ~(1 << PB5);
+  PORTB &= ~(1 << PB3);
   _delay_us(2);             // short settle
   //Trig to High
-  PORTB |= (1<<PB5);
+  PORTB |= (1<<PB3);
   _delay_us(10);
   //Trig t Low
-  PORTB &= ~(1<<PB5);
+  PORTB &= ~(1<<PB3);
 }
 
 
