@@ -136,13 +136,20 @@ int main(void) {
        
        
         uint16_t distance_ir= adc_read(&flag.irFlag);
+        uint16_t raw = distance_ir >> 6;
+            
+        uint16_t cm  = 4800 / (raw - 20);     
+        if (raw < 25) cm = 80;          
+        else if (raw > 600) cm = 10;    
+
+
 
         if(flag.irFlag){
             
 
              #ifdef DEBUG_ADC
             usart_print("IR Reading");
-            usart_transmit_16int(distance_ir);
+            usart_transmit_16int(cm);
             usart_print("\r\n");
             #endif
 
@@ -265,9 +272,11 @@ int main(void) {
                 } 
 
             } else {
+                /*
                 #ifdef DEBUG
                 usart_print("No echo (timeout)\r\n");
                 #endif
+                */
             }
 
          _delay_ms(200);

@@ -7,5 +7,5 @@
 
 void adc3_init (uint8_t en_IRQ);
 
-uint16_t adc_read(uint8_t *flag);
+uint16_t adc_read(volatile uint8_t *flag);
 #endif

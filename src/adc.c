@@ -12,7 +12,7 @@ void adc3_init (uint8_t en_IRQ) {
 }
 
 
-uint16_t adc_read(uint8_t *flag){
+uint16_t adc_read(volatile uint8_t *flag){
   ADCSRA|=(1<<ADSC); // Start ADC
 
   while (ADCSRA & (1 << ADSC));// until the bit is 0, so until the adc value is ready to be taken
