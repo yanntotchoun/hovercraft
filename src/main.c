@@ -10,19 +10,19 @@
 #define BAT_warn 133//Vbatt warn~=14V (ADC=133)
 #define DEBUG_ADC 0  // Set to 1 for debugging prints, 0 to disable
 #define DEBUG_US 1  // Set to 1 for debugging prints, 0 to disable
-#define DEBUG 0  // Set to 1 for debugging prints, 0 to disable
+#define DEBUG 1 // Set to 1 for debugging prints, 0 to disable
 #define ADC_sample_max 4 //Number of ADC samples to average per channel. So every reading is a sample of 4 ADC samples
 
 
 //INDEXES
-#define SERVO_LEFT_INDEX    1250
+#define SERVO_LEFT_INDEX    60
 #define SERVO_CENTER_INDEX  127
-#define SERVO_RIGHT_INDEX   1750
+#define SERVO_RIGHT_INDEX   195
 
 
-#define US_LEFT_INDEX       2500
+#define US_LEFT_INDEX       0
 #define US_CENTER_INDEX     127
-#define US_RIGHT_INDEX      500
+#define US_RIGHT_INDEX      255
 
 
 
@@ -134,10 +134,9 @@ static void sweep_angle(uint16_t idx){
     //LEFT SCAN
                 flag.doneUS     = 0;
                 flag.int1_state = 0;
-                OCR1A = idx;          
+                OCR1A = Servo_angle[idx];          
                  _delay_ms(500);
                
-
 
 }
 
@@ -201,7 +200,7 @@ int main(void) {
                 usart_print("\r\n");
                 #endif
 
-                if(distance_cm<=FRONT_WALL&&!flag.turnDone){
+                if(distance_cm<=FRONT_WALL&& !flag.turnDone){
                     flag.turnDone=1; 
 
                     stopPropFan();
@@ -209,16 +208,19 @@ int main(void) {
                     
                     //LEFT SCAN
                     sweep_angle(US_LEFT_INDEX);
+                     timeout = 60000;
 
-                    timeout = 60000;
                     triggerReadingUs(); 
                     _delay_ms(60);      // give sensor time before we start checking
-            
-                    while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
+                   // while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
 
-                    uint16_t ticks_l = us.distance_ticks;
+
+                     uint16_t ticks_l = us.distance_ticks;
                     distance_l = (ticks_l * 4U) / 58U;
                     
+                     _delay_ms(400);
+
+                
                       #ifdef DEBUG_US
                     usart_print("LEFT SENSOR: ticks=");
                     usart_transmit_16int(ticks_l);
@@ -231,21 +233,25 @@ int main(void) {
                 
                     sweep_angle(US_RIGHT_INDEX);
 
-                      #ifdef DEBUG
-                    usart_print("TURN RIGHT");
-                    usart_print("\r\n");
-                    #endif
-
-                    timeout = 60000;
+                      timeout = 60000;
                     triggerReadingUs(); 
                     _delay_ms(60);      // give sensor time before we start checking
 
                     // Simple timeout to avoid hanging if no echo
                         
-                    while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
+                    //while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
                     uint16_t ticks_r = us.distance_ticks;
                     distance_r =  (ticks_r * 4U) / 58U;
 
+
+                     _delay_ms(400);
+                    
+                      #ifdef DEBUG
+                    usart_print("TURN RIGHT");
+                    usart_print("\r\n");
+                    #endif
+
+    
                       #ifdef DEBUG_US
                     usart_print("RIGHT SENSOR: ticks=");
                     usart_transmit_16int(ticks_r);
@@ -254,23 +260,25 @@ int main(void) {
                     usart_print("\r\n");
                     #endif
 
-                    
                     sweep_angle(SERVO_CENTER_INDEX);
+                    _delay_ms(400);
+                
 
-                      #ifdef DEBUG
+              
+                    if(distance_l>=distance_r){
+                         sweep_angle(SERVO_RIGHT_INDEX);
+
+                    }else{
+                        sweep_angle(SERVO_LEFT_INDEX);
+                    }
+                    startPropFan();
+
+
+                    #ifdef DEBUG
                     usart_print("LOGIC");
                     usart_print("\r\n");
                     #endif
-
-                    if(distance_l>=distance_r){
-                        set_servo_angle(SERVO_RIGHT_INDEX);
-
-                    }else{
-                            set_servo_angle(SERVO_LEFT_INDEX);
-                    }
-                    startPropFan();
-                }
-
+                } 
 
             } else {
                 #ifdef DEBUG
