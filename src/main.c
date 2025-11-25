@@ -1,5 +1,6 @@
 #include "io.h"
 #include "uart.h"
+#include "imu.h"
 #include "adc.h"
 #include "tim.h"
 #include "i2c.h"
@@ -8,9 +9,9 @@
 //DEFINES
 #define BAT_min 108//Vbatt min~=13.5V (ADC=108)
 #define BAT_warn 133//Vbatt warn~=14V (ADC=133)
-#define DEBUG_ADC 0  // Set to 1 for debugging prints, 0 to disable
-#define DEBUG_US 1  // Set to 1 for debugging prints, 0 to disable
-#define DEBUG 1 // Set to 1 for debugging prints, 0 to disable
+#define DEBUG_ADC 1  // Set to 1 for debugging prints, 0 to disable
+#define DEBUG_US 0  // Set to 1 for debugging prints, 0 to disable
+#define DEBUG 0 // Set to 1 for debugging prints, 0 to disable
 #define ADC_sample_max 4 //Number of ADC samples to average per channel. So every reading is a sample of 4 ADC samples
 
 
@@ -152,7 +153,7 @@ int main(void) {
     while (1) {
        
        
-        /*
+        
         if(flag.irFlag){
             uint8_t distance_ir=ADC_data.ADC3;
 
@@ -168,7 +169,7 @@ int main(void) {
             }
             flag.irFlag=0;
         }
-        */
+        
 
         //FRONT SCAN
         flag.doneUS     = 0;
@@ -281,13 +282,24 @@ int main(void) {
                 } 
 
             } else {
-                #ifdef DEBUG
+                
+                #ifdef DEBUG_US
                 usart_print("No echo (timeout)\r\n");
                 #endif
-            }
+                
+           }
 
          _delay_ms(200);
     }
 
     return 0;
+    /*
+while(1){
+
+    usart_transmit_16int(getImuAccX());
+    usart_transmit_16int(getImuAccY());
+    usart_transmit_16int(getImuAccZ());
+}
+*/
+
 }

@@ -130,5 +130,4 @@ TWSR=0; // no prescaler
 TWBR=(uint8_t)(((F_CPU/SCL_CLOCK)-16)>>1);  //setting SCL; must be >10 for stable operation
 }
 
-
 //=============================== TWI functions end ===================
