@@ -301,5 +301,4 @@ while(1){
     usart_transmit_16int(getImuAccZ());
 }
 */
-
 }
