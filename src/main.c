@@ -62,11 +62,11 @@ struct Ultrasonic {
 
   //CONSTANTS
 extern const uint16_t Servo_angle[256];
-  const uint16_t  BAR_TH = 51;   //10 cm is 0.25/5*1023 = 51, If upward sensor reads less than 15 cm, the bar is detected.
-  const uint16_t FRONT_WALL = 30; // If front sensor reads less than 15 cm, a wall is detected
-  const uint16_t US_LEFT =0;
-  const uint16_t US_RIGHT =180;
- const uint16_t SERVO_LEFT=60;
+const uint16_t  BAR_TH = 51;   //10 cm is 0.25/5*1023 = 51, If upward sensor reads less than 15 cm, the bar is detected.
+const uint16_t FRONT_WALL = 30; // If front sensor reads less than 15 cm, a wall is detected
+const uint16_t US_LEFT =0;
+const uint16_t US_RIGHT =180;
+const uint16_t SERVO_LEFT=60;
 const uint16_t SERVO_RIGHT =120;
 const uint8_t en_IRQ=0;
 
@@ -90,23 +90,6 @@ const uint8_t en_IRQ=0;
 ISR(TIMER1_CAPT_vect) { }
 
 
-  ISR(ADC_vect) { //if there is an interrupt that is not accounted for, set flag to 1
-        if(ADC_data.sample==0){
-            ADC_data.acc=0;
-            ADC_data.sample++;
-            return;
-        }else if(ADC_data.sample<=ADC_sample_max){
-            ADC_data.acc+=ADCH;
-            ADC_data.sample++;
-            return;
-        }else if(ADC_data.sample>ADC_sample_max){
-
-            ADC_data.sample=0;
-            ADC_data.ADC3 = (uint8_t)ADC_data.acc/ADC_sample_max;
-            flag.irFlag =1;
-            return;
-        }
-  }
 
 ISR(INT0_vect) {
   
@@ -145,16 +128,17 @@ int main(void) {
     timer1_50Hz_init(en_IRQ);   // Servo PWM
     timer0_init();              // Timer0 (Free running) US
     io_init();                  // initialiastion of gpio
-    adc3_init(1);             
+    adc3_init(0);               // no interrupts for adc
     int0_init();                
     sei();                      //enable interrupts
 
     while (1) {
        
        
-        /*
+        uint16_t distance_ir= adc_read(&flag.irFlag);
+
         if(flag.irFlag){
-            uint8_t distance_ir=ADC_data.ADC3;
+            
 
              #ifdef DEBUG_ADC
             usart_print("IR Reading");
@@ -168,7 +152,7 @@ int main(void) {
             }
             flag.irFlag=0;
         }
-        */
+        
 
         //FRONT SCAN
         flag.doneUS     = 0;
