@@ -10,23 +10,70 @@
 //DEFINES
 #define BAT_min 108//Vbatt min~=13.5V (ADC=108)
 #define BAT_warn 133//Vbatt warn~=14V (ADC=133)
-#define DEBUG_ADC 1  // Set to 1 for debugging prints, 0 to disable
+#define DEBUG_ADC 0  // Set to 1 for debugging prints, 0 to disable
 #define DEBUG_US 0  // Set to 1 for debugging prints, 0 to disable
 #define DEBUG 0 // Set to 1 for debugging prints, 0 to disable
 #define ADC_sample_max 4 //Number of ADC samples to average per channel. So every reading is a sample of 4 ADC samples
 
 
 //INDEXES 
-#define SERVO_LEFT_INDEX    60
-#define SERVO_CENTER_INDEX  127
-#define SERVO_RIGHT_INDEX   195
+
+/*
+NEGATIVE SIDE
+
+| Degree | Index |
+| ------ | ----- |
+| -84    | 0     |
+| -75    | 14    |
+| -60    | 36    |
+| -45    | 57    |
+| -30    | 79    |
+| -20    | 94    |
+| -10    | 109   |
+| -5     | 116   |
+| -1     | 126   |
+| -0.5   | 127   |
+| 0      | 128   |
 
 
+POSITIVE SIDE
+
+| Degree | Index |
+| ------ | ----- |
+| +0.5   | 128   |
+| +1     | 129   |
+| +5     | 140   |
+| +10    | 148   |
+| +20    | 163   |
+| +30    | 178   |
+| +45    | 199   |
+| +60    | 221   |
+| +75    | 243   |
+| +84    | 255   |
+
+
+| Meaning    | Degree | Index | Servo_angle[index] |
+| ---------- | ------ | ----- | ------------------ |
+| Full left  | -84    | 0     | 85                 |
+| Center     | 0      | 128   | 188                |
+| Full right | +84    | 255   | 290                |
+
+
+
+60
+
+295
+*/
+#define SERVO_LEFT_INDEX   0// 90 degrees
+#define SERVO_CENTER_INDEX  113
+#define SERVO_RIGHT_INDEX   255//90 degrees
+
+//14 
 #define US_LEFT_INDEX       0
-#define US_CENTER_INDEX     127
+#define US_CENTER_INDEX     113
 #define US_RIGHT_INDEX      255
 
-#define BAR_TH  51
+#define BAR_TH  500 //change it for the final 
 #define FRONT_WALL 30
 
 
@@ -128,6 +175,16 @@ static void sweep_angle(uint16_t idx){
 
 }
 
+
+static void turning_logic(uint16_t idx){
+
+     sweep_angle(idx);
+        _delay_ms(40);
+        startPropFan();
+    sweep_angle(SERVO_CENTER_INDEX);
+    
+}
+
 int main(void) {
     uart_init();                // initialisation of UART
     timer1_50Hz_init(en_IRQ);   // Servo PWM
@@ -135,7 +192,7 @@ int main(void) {
     io_init();                  // initialiastion of gpio
     adc3_init(0);               // no interrupts for adc
     int0_init(); 
-    
+   
     imu_init();    //initialising the imu  
     /*
     imu_calibration();      //calibrate the imu
@@ -144,13 +201,15 @@ int main(void) {
 
     while (1) {
        
-       
+        startPropFan();
         uint16_t distance_ir= adc_read(&flag.irFlag);
         uint16_t raw = distance_ir >> 6;
             
-        uint16_t cm  = 4800 / (raw - 20);     
-        if (raw < 25) cm = 80;          
-        else if (raw > 600) cm = 10;  
+        uint16_t cm = 4800 / (raw - 20);
+
+        if (cm > 80) cm = 80;
+        if (cm < 10) cm = 10;
+
         
         /*
         if (!imu.tick20) continue;
@@ -164,19 +223,23 @@ int main(void) {
             
 
              #ifdef DEBUG_ADC
-            usart_print("IR Reading");
+            usart_print("IR Reading =");
             usart_transmit_16int(cm);
+            usart_print("\r\n");
+            usart_print("IR Reading RAW=");
+            usart_transmit_16int(raw);
             usart_print("\r\n");
             #endif
 
-            if(distance_ir<BAR_TH){
+            if(raw>BAR_TH){
                 stopLiftFan();
                 stopPropFan();
+                return;
             }
             flag.irFlag=0;
         }
         
-
+        
         //FRONT SCAN
         flag.doneUS     = 0;
         flag.int1_state = 0;
@@ -211,14 +274,16 @@ int main(void) {
                     flag.turnDone=1; 
 
                     stopPropFan();
-                    //stopLiftFan();
+                    _delay_ms(100);
                     
                     //LEFT SCAN
                     sweep_angle(US_LEFT_INDEX);
+                    triggerReadingUs(); 
+                   // _delay_ms(60);      // give sensor time before we start checking
+                    _delay_ms(300);// make it slower a bit to put less stress on the fan structure
                      timeout = 60000;
 
-                    triggerReadingUs(); 
-                    _delay_ms(60);      // give sensor time before we start checking
+                   
                    // while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
 
 
@@ -239,10 +304,12 @@ int main(void) {
                     //RIGHT SCAN
                 
                     sweep_angle(US_RIGHT_INDEX);
+                     triggerReadingUs(); 
+                    _delay_ms(60);      // give sensor time before we start checking
+                     _delay_ms(300);// make it slower a bit to put less stress on the fan structure
 
                       timeout = 60000;
-                    triggerReadingUs(); 
-                    _delay_ms(60);      // give sensor time before we start checking
+                    
 
                     // Simple timeout to avoid hanging if no echo
                         
@@ -272,13 +339,13 @@ int main(void) {
                 
 
               
-                    if(distance_l>=distance_r){
-                         sweep_angle(SERVO_RIGHT_INDEX);
+                    if(distance_l>distance_r){
+                        turning_logic(SERVO_LEFT_INDEX);
 
                     }else{
-                        sweep_angle(SERVO_LEFT_INDEX);
+                        turning_logic(SERVO_RIGHT_INDEX);
                     }
-                    startPropFan();
+                    
 
 
                     #ifdef DEBUG
@@ -287,13 +354,12 @@ int main(void) {
                     #endif
                 } 
 
-            } else {
-                /*
-                #ifdef DEBUG
-                usart_print("No echo (timeout)\r\n");
-                #endif
-                */
-            }
+            } 
+                
+                
+
+                
+            
 
          _delay_ms(200);
     }
