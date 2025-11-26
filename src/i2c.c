@@ -1,18 +1,9 @@
-#include <util/twi.h>
 
-extern volatile struct {
-	uint8_t TX_new_data:1;
-	uint8_t TX_finished:1;
-	uint8_t TX_buffer1_empty:1;
-	uint8_t TX_buffer2_empty:1;
-	uint8_t RX_flag:3;
-	uint8_t TWI_ACK:1;
-} flags;
+#include "i2c.h"
 
-#define SCL_CLOCK 400// to be changed
-
-extern volatile uint8_t TWI_status, TWI_byte;
-
+volatile TWI_Flags_t flags = {0};
+volatile uint8_t TWI_status = 0;
+volatile uint8_t TWI_byte   = 0;
 //=============================== TWI functions ======================
 
 uint8_t TWI_start(uint8_t twi_addr, uint8_t read_write) {
@@ -30,7 +21,7 @@ uint8_t TWI_start(uint8_t twi_addr, uint8_t read_write) {
 	return 0;
 }
 
-void inline TWI_stop(void) {
+void  TWI_stop(void) {
 	TWCR=((1<<TWINT)|(1<<TWEN)|(1<<TWSTO)); // send stop condition
 	while(TWCR&(1<<TWSTO)); // wait until stop condition is executed and bus released
 }

@@ -4,6 +4,7 @@
 #include "adc.h"
 #include "tim.h"
 #include "i2c.h"
+#include "imuLogic.h"
 #include <string.h>
 
 //DEFINES
@@ -15,7 +16,7 @@
 #define ADC_sample_max 4 //Number of ADC samples to average per channel. So every reading is a sample of 4 ADC samples
 
 
-//INDEXES
+//INDEXES 
 #define SERVO_LEFT_INDEX    60
 #define SERVO_CENTER_INDEX  127
 #define SERVO_RIGHT_INDEX   195
@@ -24,6 +25,9 @@
 #define US_LEFT_INDEX       0
 #define US_CENTER_INDEX     127
 #define US_RIGHT_INDEX      255
+
+#define BAR_TH  51
+#define FRONT_WALL 30
 
 
 
@@ -37,7 +41,9 @@ static volatile struct {
     uint16_t acc;
   uint16_t ADC3;
   volatile uint16_t sample;
-} ADC_data; 
+} ADC_data;
+
+
 
 struct Flags{
   volatile uint8_t unhandled_interrupt_flag;// if something bad happens
@@ -63,13 +69,11 @@ struct Ultrasonic {
 
   //CONSTANTS
 extern const uint16_t Servo_angle[256];
-const uint16_t  BAR_TH = 51;   //10 cm is 0.25/5*1023 = 51, If upward sensor reads less than 15 cm, the bar is detected.
-const uint16_t FRONT_WALL = 30; // If front sensor reads less than 15 cm, a wall is detected
-const uint16_t US_LEFT =0;
-const uint16_t US_RIGHT =180;
-const uint16_t SERVO_LEFT=60;
-const uint16_t SERVO_RIGHT =120;
 const uint8_t en_IRQ=0;
+
+//VARIABLES
+
+
 
  
 
@@ -130,25 +134,32 @@ int main(void) {
     timer0_init();              // Timer0 (Free running) US
     io_init();                  // initialiastion of gpio
     adc3_init(0);               // no interrupts for adc
-    int0_init();                
+    int0_init(); 
+    
+    imu_init();    //initialising the imu  
+    /*
+    imu_calibration();      //calibrate the imu
+    */
     sei();                      //enable interrupts
 
     while (1) {
        
        
-<<<<<<< HEAD
-        
-=======
         uint16_t distance_ir= adc_read(&flag.irFlag);
         uint16_t raw = distance_ir >> 6;
             
         uint16_t cm  = 4800 / (raw - 20);     
         if (raw < 25) cm = 80;          
-        else if (raw > 600) cm = 10;    
+        else if (raw > 600) cm = 10;  
+        
+        /*
+        if (!imu.tick20) continue;
+        imu.tick20 = 0;
+        
+        getValuesImu();
+        drift_algorithm();
+        */
 
-
-
->>>>>>> main
         if(flag.irFlag){
             
 
@@ -277,21 +288,12 @@ int main(void) {
                 } 
 
             } else {
-<<<<<<< HEAD
-                
-                #ifdef DEBUG_US
-                usart_print("No echo (timeout)\r\n");
-                #endif
-                
-           }
-=======
                 /*
                 #ifdef DEBUG
                 usart_print("No echo (timeout)\r\n");
                 #endif
                 */
             }
->>>>>>> main
 
          _delay_ms(200);
     }
