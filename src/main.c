@@ -121,7 +121,7 @@ const uint8_t en_IRQ=0;
 
 //VARIABLES
 
-
+volatile uint32_t imuTime=0;
 
 
 
@@ -136,6 +136,10 @@ const uint8_t en_IRQ=0;
     }
 }
 ISR(TIMER1_CAPT_vect) { }
+
+ISR(TIMER2_OVF_vect){
+    imuTime+=1024;
+}
 
 
 
@@ -188,15 +192,15 @@ int main(void) {
     io_init();                  // initialiastion of gpio
     adc3_init(0);               // no interrupts for adc
     int0_init(); 
+
+    
+   
+    sei();                      //enable interrupts
+
     imu_init();    //initialising the imu  
-    imu_calibration(20);//500 samples before it keeps going
+    imu_calibration(100);//500 samples before it keeps going
     imu.timeSinceLast =0.02f;//trying to put it here
    
-    
-    /*
-    imu_calibration();      //calibrate the imu
-    */
-    sei();                      //enable interrupts
 
     while (1) {
        

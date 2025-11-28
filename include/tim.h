@@ -12,5 +12,6 @@ uint16_t angleToTicks(uint8_t angle);
 void set_servo_angle();
 void timer0_init ();
 void int0_init();
+void timer2_init(); 
 
 #endif

@@ -8,7 +8,7 @@
 #define YAW_FULL_DEFLECTION  15.0f //in degrees
 
 #define GYRO_SENS_Z      65.5f    // LSB per deg/s at ±500 dps
-#define GZ_CUTOFF_LSB    15000  // it removes bad gyro values
+#define GZ_CUTOFF_LSB    15000 // it removes bad gyro values
 #define GZ_DEADBAND_LSB  20     // value that removes very small changes to 0, to prevent small changes from messing up the yaw
 
 /*.    ALTERNATE DEADBAND VALUES
@@ -25,7 +25,6 @@
 
 
 
-
 struct IMU_data imu;
 
 
@@ -38,16 +37,13 @@ usart_print("CALIBRATING THE IMU FOR THE BIAS. KEEP STILL\n");
 
 while(count<samples){
 
-      imu.gyroZraw=readImuGyroZ();
+    imu.gyroZraw=readImuGyroZ();
 
     //this rejects garbage values
     if((imu.gyroZraw >= -GZ_CUTOFF_LSB && imu.gyroZraw <= GZ_CUTOFF_LSB)){
         sum+= imu.gyroZraw;
         count++;
 
-        usart_print("sum = ");
-        usart_transmit_16int((int16_t)sum);//FOR DEBUGGING REMOVE IF YOU DON'T NEED IT
-         usart_print("\n");
     }
      _delay_ms(5);
 
@@ -82,14 +78,22 @@ imu.yaw =0.0f;
 
 void drift_algorithm(volatile uint8_t *flag){
 
+    static uint32_t lastTime=0;
+
+
     if(*flag){//stop the imu during the turning logic
         return;
     }
-    
+    uint32_t currentTime=imuTime;
+    float dt = (currentTime- lastTime) * 1e-6f;
+    lastTime = currentTime;
+
+    if (dt <= 0.0f || dt > 0.1f) dt = 0.02f;
+
     int16_t gzRawUnfiltered= readImuGyroZ();
 
     //FIlTERING 
-
+    // remove math
     //removing terrible value
     if (gzRawUnfiltered > GZ_CUTOFF_LSB || gzRawUnfiltered < -GZ_CUTOFF_LSB) {
             return;
@@ -112,7 +116,7 @@ void drift_algorithm(volatile uint8_t *flag){
     
    
    
-  
+    
      usart_print("YAW: ");
      usart_transmit_float(imu.yaw);
      usart_print("\n");
@@ -124,6 +128,6 @@ void drift_algorithm(volatile uint8_t *flag){
      usart_print("\n");
      
 
-  
+        
 
 }

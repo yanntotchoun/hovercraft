@@ -103,3 +103,12 @@ void timer0_init () {
 
     TIMSK0 |= (1 << TOIE0);// Enable Timer0 overflow interrupt
 }
+
+void timer2_init () { 
+
+    TCCR2A = 0;           // normal mode
+    TCCR2B = (1 << CS22); // prescaler 64 -> 4 us per tick
+    TCNT2 = 0;
+
+    TIMSK2 |= (1 << TOIE2);  // enable overflow interrupt
+}
