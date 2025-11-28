@@ -81,13 +81,15 @@ void triggerReadingUs(){
 
 void stopPropFan(){
   PORTD &= ~(1 <<PD5);
+  
 }
 
 void stopLiftFan(){
-  PORTD &= ~(1 <<PD3);
+  PORTD &= ~(1 <<PD7);
 }
 
 void startPropFan(){
   PORTD |= (1<<PD5);
+  
 }
 

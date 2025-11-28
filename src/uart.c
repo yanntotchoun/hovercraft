@@ -62,3 +62,41 @@ void usart_print(char* string){
   }
 
 }
+
+void usart_transmit_float(float v) {
+    // Handle negative
+    if (v < 0) {
+        usart_transmit_char('-');
+        v = -v;
+    }
+
+    // Integer part
+    uint32_t int_part = (uint32_t)v;
+
+    // Fractional part (2 decimals)
+    float f = v - (float)int_part;
+    uint32_t frac_part = (uint32_t)(f * 100.0f);
+
+    // Print integer part
+    char buf[12];
+    uint8_t i = 0;
+
+    if (int_part == 0) {
+        usart_transmit_char('0');
+    } else {
+        while (int_part > 0) {
+            buf[i++] = '0' + (int_part % 10);
+            int_part /= 10;
+        }
+        while (i--) {
+            usart_transmit_char(buf[i]);
+        }
+    }
+
+    // Decimal point
+    usart_transmit_char('.');
+
+    // Print fractional part padded to 2 digits
+    usart_transmit_char('0' + (frac_part / 10));
+    usart_transmit_char('0' + (frac_part % 10));
+}

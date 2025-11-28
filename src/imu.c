@@ -3,7 +3,7 @@
 
 void imu_init(){
     Write_Reg(IMU_ADDR, REG_PWR_MGMT_1, 0x01);// picking the most stable clock source
-  _delay_ms(5);
+  _delay_ms(10);
     Write_Reg(IMU_ADDR, REG_DIG_LOW_PASS, 0x03);// so we are applying a digiral low pass filter to filter out the noise
   Write_Reg(IMU_ADDR, REG_SMPLRT_DIV, 0x04);//sample rate at 200 Hz
   Write_Reg(IMU_ADDR, REG_GYRO_CFG, 0x08);//0x08 = FS_SEL = 1 → ±500°/s

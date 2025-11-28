@@ -73,10 +73,8 @@ POSITIVE SIDE
 #define US_CENTER_INDEX     113
 #define US_RIGHT_INDEX      255
 
-#define BAR_TH  500 //change it for the final 
+#define BAR_TH  211 //SHOULD BE A PERFECT VALUE
 #define FRONT_WALL 30
-
-
 
 
 
@@ -98,8 +96,11 @@ struct Flags{
   volatile uint8_t ovf_count;  // number of Timer1 overflows during pulse
   volatile uint8_t doneUS;//done with ultrasonic readings
   volatile uint8_t irFlag;//if IR is detected
+  volatile uint8_t imuStop;//0 = stop  ;1=continue
   volatile uint8_t turnDone;//0: no wall yet ready to be trigerred, 1:wall detected don't trigger again until  to prevent ultrasonic to turning multiple time inside of the algorith
 };
+
+
 
 volatile struct Flags flag= {0};//initialise every value to 0
  
@@ -111,7 +112,7 @@ struct Ultrasonic {
  volatile struct Ultrasonic us= {0};//initialise every value to 0
 
 
-
+struct IMU_data imu;
 
 
   //CONSTANTS
@@ -120,11 +121,6 @@ const uint8_t en_IRQ=0;
 
 //VARIABLES
 
-
-
- 
-
- 
 
 
 
@@ -192,8 +188,11 @@ int main(void) {
     io_init();                  // initialiastion of gpio
     adc3_init(0);               // no interrupts for adc
     int0_init(); 
-   
     imu_init();    //initialising the imu  
+    imu_calibration(20);//500 samples before it keeps going
+    imu.timeSinceLast =0.02f;//trying to put it here
+   
+    
     /*
     imu_calibration();      //calibrate the imu
     */
@@ -211,17 +210,13 @@ int main(void) {
         if (cm < 10) cm = 10;
 
         
-        /*
-        if (!imu.tick20) continue;
-        imu.tick20 = 0;
+
+        drift_algorithm(&flag.imuStop);
         
-        getValuesImu();
-        drift_algorithm();
-        */
 
         if(flag.irFlag){
             
-
+           /*
              #ifdef DEBUG_ADC
             usart_print("IR Reading =");
             usart_transmit_16int(cm);
@@ -230,11 +225,11 @@ int main(void) {
             usart_transmit_16int(raw);
             usart_print("\r\n");
             #endif
-
+            */
             if(raw>BAR_TH){
                 stopLiftFan();
                 stopPropFan();
-                return;
+                return 0;//use a flag here instead of return
             }
             flag.irFlag=0;
         }
@@ -261,7 +256,7 @@ int main(void) {
                  flag.turnDone = 0;
                 }
                
-                
+                /*
                 #ifdef DEBUG_US
                 usart_print("Echo: ticks=");
                 usart_transmit_16int(ticks);
@@ -269,8 +264,10 @@ int main(void) {
                 usart_transmit_16int(distance_cm);
                 usart_print("\r\n");
                 #endif
+                */
 
                 if(distance_cm<=FRONT_WALL&& !flag.turnDone){
+                    flag.imuStop =1;//stop the imu during the turning logic
                     flag.turnDone=1; 
 
                     stopPropFan();
@@ -292,7 +289,7 @@ int main(void) {
                     
                      _delay_ms(400);
 
-                
+                    /*
                       #ifdef DEBUG_US
                     usart_print("LEFT SENSOR: ticks=");
                     usart_transmit_16int(ticks_l);
@@ -300,6 +297,7 @@ int main(void) {
                     usart_transmit_16int(distance_l);
                     usart_print("\r\n");
                     #endif
+                    */
 
                     //RIGHT SCAN
                 
@@ -320,12 +318,8 @@ int main(void) {
 
                      _delay_ms(400);
                     
-                      #ifdef DEBUG
-                    usart_print("TURN RIGHT");
-                    usart_print("\r\n");
-                    #endif
-
-    
+                    
+                    /*
                       #ifdef DEBUG_US
                     usart_print("RIGHT SENSOR: ticks=");
                     usart_transmit_16int(ticks_r);
@@ -333,7 +327,7 @@ int main(void) {
                     usart_transmit_16int(distance_r);
                     usart_print("\r\n");
                     #endif
-
+                        */
                     sweep_angle(SERVO_CENTER_INDEX);
                     _delay_ms(400);
                 
@@ -348,10 +342,7 @@ int main(void) {
                     
 
 
-                    #ifdef DEBUG
-                    usart_print("LOGIC");
-                    usart_print("\r\n");
-                    #endif
+                     flag.imuStop =0;
                 } 
 
             } 
@@ -361,16 +352,8 @@ int main(void) {
                 
             
 
-         _delay_ms(200);
+         _delay_ms(20);
     }
 
     return 0;
-    /*
-while(1){
-
-    usart_transmit_16int(getImuAccX());
-    usart_transmit_16int(getImuAccY());
-    usart_transmit_16int(getImuAccZ());
-}
-*/
 }
