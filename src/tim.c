@@ -106,9 +106,14 @@ void timer0_init () {
 
 void timer2_init () { 
 
-    TCCR2A = 0;           // normal mode
-    TCCR2B = (1 << CS22); // prescaler 64 -> 4 us per tick
-    TCNT2 = 0;
+      // CTC mode on Timer2
+    TCCR2A = (1 << WGM21);          // CTC mode (clear on compare match)
+    TCCR2B = 0;
 
-    TIMSK2 |= (1 << TOIE2);  // enable overflow interrupt
+
+    // 1 ms: OCR2A = 249
+    OCR2A  = 249;
+
+    TCCR2B |= (1 << CS22);          // prescaler 64 (CS22=1, CS21=0, CS20=0)
+    TIMSK2 |= (1 << OCIE2A);        // enable compare match interrupt
 }
