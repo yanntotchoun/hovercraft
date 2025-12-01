@@ -63,12 +63,12 @@ POSITIVE SIDE
 295
 */
 #define SERVO_LEFT_INDEX   0// 90 degrees
-#define SERVO_CENTER_INDEX  113
+#define SERVO_CENTER_INDEX  1
 #define SERVO_RIGHT_INDEX   255//90 degrees
 
 //14 
 #define US_LEFT_INDEX       0
-#define US_CENTER_INDEX     113
+#define US_CENTER_INDEX     1
 #define US_RIGHT_INDEX      255
 
 #define BAR_TH  211 //SHOULD BE A PERFECT VALUE
@@ -187,19 +187,19 @@ int main(void) {
     io_init();                  // initialiastion of gpio
     adc3_init(0);               // no interrupts for adc
     int0_init(); 
-    timer2_init();
+    //timer2_init();
 
     
    
     sei();                      //enable interrupts
-
+    /*
     imu_init();    //initialising the imu  
     imu_calibration(100);//500 samples before it keeps going
     imu.timeSinceLast =0.02f;//trying to put it here
-   
+   */
 
     while (1) {
-        imu.timeSinceLast =imuTime;
+       // imu.timeSinceLast =imuTime;
    
         startPropFan();
         uint16_t distance_ir= adc_read(&flag.irFlag);
@@ -227,11 +227,15 @@ int main(void) {
             usart_print("\r\n");
             #endif
             */
-            if(raw>BAR_TH){
+           /*
+                if(raw>BAR_TH){
                 stopLiftFan();
                 stopPropFan();
                 return 0;//use a flag here instead of return
             }
+           
+           */
+
             flag.irFlag=0;
         }
         
