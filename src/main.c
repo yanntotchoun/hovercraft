@@ -11,13 +11,12 @@
 #define DEBUG_ADC 0  // Set to 1 for debugging prints, 0 to disable
 #define DEBUG_US 1  // Set to 1 for debugging prints, 0 to disable
 #define DEBUG 1 // Set to 1 for debugging prints, 0 to disable
-#define ADC_sample_max 4 //Number of ADC samples to average per channel. So every reading is a sample of 4 ADC samples
 
 
 //INDEXES
-#define SERVO_LEFT_INDEX    60
+#define SERVO_LEFT_INDEX    1
 #define SERVO_CENTER_INDEX  127
-#define SERVO_RIGHT_INDEX   195
+#define SERVO_RIGHT_INDEX   250
 
 
 #define US_LEFT_INDEX       0
@@ -257,13 +256,17 @@ int main(void) {
 
               
                     if(distance_l>=distance_r){
+                        startPropFan();
                          sweep_angle(SERVO_RIGHT_INDEX);
+                          sweep_angle(SERVO_CENTER_INDEX);
+        
 
                     }else{
+                        startPropFan();
                         sweep_angle(SERVO_LEFT_INDEX);
+                         sweep_angle(SERVO_CENTER_INDEX);
                     }
-                    startPropFan();
-
+                
 
                     #ifdef DEBUG
                     usart_print("LOGIC");
