@@ -34,7 +34,7 @@ void imu_calibration();
        
 uint8_t yaw_to_idx(float y);
 
-void drift_algorithm(volatile uint8_t *flag);
+void drift_algorithm();
 
 
 #endif

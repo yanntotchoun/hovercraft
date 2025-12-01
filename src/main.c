@@ -204,21 +204,21 @@ int main(void) {
 
     while (1) {
        
-        startPropFan();
+        /*startPropFan();
         uint16_t distance_ir= adc_read(&flag.irFlag);
         uint16_t raw = distance_ir >> 6;
             
         uint16_t cm = 4800 / (raw - 20);
 
         if (cm > 80) cm = 80;
-        if (cm < 10) cm = 10;
+        if (cm < 10) cm = 10;*/
 
         
 
-        drift_algorithm(&flag.imuStop);
+        drift_algorithm();
         
 
-        if(flag.irFlag){
+        //if(flag.irFlag){
             
            /*
              #ifdef DEBUG_ADC
@@ -230,7 +230,7 @@ int main(void) {
             usart_print("\r\n");
             #endif
             */
-            if(raw>BAR_TH){
+/*            if(raw>BAR_TH){
                 stopLiftFan();
                 stopPropFan();
                 return 0;//use a flag here instead of return
@@ -270,7 +270,7 @@ int main(void) {
                 #endif
                 */
 
-                if(distance_cm<=FRONT_WALL&& !flag.turnDone){
+                /*if(distance_cm<=FRONT_WALL&& !flag.turnDone){
                     flag.imuStop =1;//stop the imu during the turning logic
                     flag.turnDone=1; 
 
@@ -305,7 +305,7 @@ int main(void) {
 
                     //RIGHT SCAN
                 
-                    sweep_angle(US_RIGHT_INDEX);
+                    /*sweep_angle(US_RIGHT_INDEX);
                      triggerReadingUs(); 
                     _delay_ms(60);      // give sensor time before we start checking
                      _delay_ms(300);// make it slower a bit to put less stress on the fan structure
@@ -332,7 +332,7 @@ int main(void) {
                     usart_print("\r\n");
                     #endif
                         */
-                    sweep_angle(SERVO_CENTER_INDEX);
+                    /*sweep_angle(SERVO_CENTER_INDEX);
                     _delay_ms(400);
                 
 
@@ -357,7 +357,9 @@ int main(void) {
             
 
          _delay_ms(20);
+         */
     }
+    
 
     return 0;
 }
