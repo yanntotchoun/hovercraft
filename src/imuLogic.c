@@ -38,13 +38,15 @@ usart_print("CALIBRATING THE IMU FOR THE BIAS. KEEP STILL\n");
 while(count<samples){
 
     imu.gyroZraw=readImuGyroZ();
-
+    count++;
+    /*
     //this rejects garbage values
-    if((imu.gyroZraw >= -GZ_CUTOFF_LSB && imu.gyroZraw <= GZ_CUTOFF_LSB)){
+    if(imu.gyroZraw > -500 && imu.gyroZraw <500){
         sum+= imu.gyroZraw;
         count++;
 
     }
+        */
      _delay_ms(5);
 
 }
@@ -84,6 +86,7 @@ void drift_algorithm(volatile uint8_t *flag){
     if(*flag){//stop the imu during the turning logic
         return;
     }
+
     uint32_t currentTime=imuTime;
     float dt = (currentTime- lastTime) * 1e-6f;
     lastTime = currentTime;

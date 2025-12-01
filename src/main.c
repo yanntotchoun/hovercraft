@@ -72,7 +72,7 @@ POSITIVE SIDE
 #define US_RIGHT_INDEX      255
 
 #define BAR_TH  211 //SHOULD BE A PERFECT VALUE
-#define FRONT_WALL 30            //
+#define FRONT_WALL 50            //
 
 
 
@@ -173,9 +173,10 @@ static void sweep_angle(uint16_t idx){
 
 
 static void turning_logic(uint16_t idx){//////
+    startLiftFan();
     startPropFan(); 
-     sweep_angle(idx);
-    _delay_ms(40);
+    sweep_angle(idx);
+    _delay_ms(400);//determining the turning
     sweep_angle(SERVO_CENTER_INDEX);
     
 }
@@ -187,21 +188,21 @@ int main(void) {
     io_init();                  // initialiastion of gpio
     adc3_init(0);               // no interrupts for adc
     int0_init(); 
-    //timer2_init();
+  //  timer2_init();
 
     
    
     sei();                      //enable interrupts
-    /*
+     /*
     imu_init();    //initialising the imu  
     imu_calibration(100);//500 samples before it keeps going
-    imu.timeSinceLast =0.02f;//trying to put it here
-   */
-
+    imu.timeSinceLast =0.02f;//trying to put it herE
+    */
     while (1) {
-       // imu.timeSinceLast =imuTime;
-   
+       imu.timeSinceLast =imuTime;
+        flag.imuStop=0;
         startPropFan();
+       
         uint16_t distance_ir= adc_read(&flag.irFlag);
         uint16_t raw = distance_ir >> 6;
             
@@ -210,14 +211,14 @@ int main(void) {
         if (cm > 80) cm = 80;
         if (cm < 10) cm = 10;
 
-        
+       // drift_algorithm(&flag.imuStop);
 
         
         
 
         if(flag.irFlag){
             
-           /*
+           
              #ifdef DEBUG_ADC
             usart_print("IR Reading =");
             usart_transmit_16int(cm);
@@ -226,16 +227,15 @@ int main(void) {
             usart_transmit_16int(raw);
             usart_print("\r\n");
             #endif
-            */
-           /*
+            
+           
                 if(raw>BAR_TH){
                 stopLiftFan();
                 stopPropFan();
                 return 0;//use a flag here instead of return
             }
            
-           */
-
+           
             flag.irFlag=0;
         }
         
@@ -261,7 +261,7 @@ int main(void) {
                  flag.turnDone = 0;
                 }
                
-                /*
+                
                 #ifdef DEBUG_US
                 usart_print("Echo: ticks=");
                 usart_transmit_16int(ticks);
@@ -269,12 +269,12 @@ int main(void) {
                 usart_transmit_16int(distance_cm);
                 usart_print("\r\n");
                 #endif
-                */
+                
 
                 if(distance_cm<=FRONT_WALL&& !flag.turnDone){
                     flag.imuStop =1;//stop the imu during the turning logic
                     flag.turnDone=1; 
-
+                    stopLiftFan();
                     stopPropFan();
                     _delay_ms(100);
                     
@@ -294,7 +294,7 @@ int main(void) {
                     
                      _delay_ms(400);
 
-                    /*
+                    
                       #ifdef DEBUG_US
                     usart_print("LEFT SENSOR: ticks=");
                     usart_transmit_16int(ticks_l);
@@ -302,7 +302,7 @@ int main(void) {
                     usart_transmit_16int(distance_l);
                     usart_print("\r\n");
                     #endif
-                    */
+                    
 
                     //RIGHT SCAN
                 
@@ -332,10 +332,10 @@ int main(void) {
                     usart_transmit_16int(distance_r);
                     usart_print("\r\n");
                     #endif
-                        */
+                        
                     sweep_angle(SERVO_CENTER_INDEX);
                     _delay_ms(400);
-                
+                        */
 
               
                     if(distance_l>distance_r){
@@ -351,13 +351,15 @@ int main(void) {
                 } 
 
             } 
+        
                 
-              //,mm,.  drift_algorithm(&flag.imuStop);
+           // drift_algorithm(&flag.imuStop);
 
                 
             
 
          _delay_ms(20);
+         
     }
 
     return 0;

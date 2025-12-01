@@ -19,6 +19,8 @@ void triggerReadingUs();
 void stopPropFan();
 
 void stopLiftFan();
+void startLiftFan();
+
 
 void startPropFan();
 void io_init();

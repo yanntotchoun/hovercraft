@@ -92,3 +92,8 @@ void startPropFan(){
   
 }
 
+void startLiftFan(){
+PORTD |= (1<<PD7);
+
+}
+
