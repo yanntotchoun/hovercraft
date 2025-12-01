@@ -8,12 +8,10 @@
 #include <string.h>
 
 //DEFINES
-#define BAT_min 108//Vbatt min~=13.5V (ADC=108)
-#define BAT_warn 133//Vbatt warn~=14V (ADC=133)
 #define DEBUG_ADC 0  // Set to 1 for debugging prints, 0 to disable
 #define DEBUG_US 0  // Set to 1 for debugging prints, 0 to disable
 #define DEBUG 0 // Set to 1 for debugging prints, 0 to disable
-#define ADC_sample_max 4 //Number of ADC samples to average per channel. So every reading is a sample of 4 ADC samples
+
 
 
 //INDEXES 
@@ -74,7 +72,7 @@ POSITIVE SIDE
 #define US_RIGHT_INDEX      255
 
 #define BAR_TH  211 //SHOULD BE A PERFECT VALUE
-#define FRONT_WALL 30
+#define FRONT_WALL 30            //
 
 
 
@@ -141,8 +139,6 @@ ISR(TIMER2_OVF_vect){
     imuTime+=1024;
 }
 
-
-
 ISR(INT0_vect) {
   
     uint16_t time = ((uint16_t)flag.ovf_count << 8) | TCNT0;//time inside of the counter of time 0 (bit shifting so it is an 16 bit value to limit oveflows)
@@ -176,11 +172,10 @@ static void sweep_angle(uint16_t idx){
 }
 
 
-static void turning_logic(uint16_t idx){
-
+static void turning_logic(uint16_t idx){//////
+    startPropFan(); 
      sweep_angle(idx);
-        _delay_ms(40);
-        startPropFan();
+    _delay_ms(40);
     sweep_angle(SERVO_CENTER_INDEX);
     
 }
@@ -192,6 +187,7 @@ int main(void) {
     io_init();                  // initialiastion of gpio
     adc3_init(0);               // no interrupts for adc
     int0_init(); 
+    timer2_init();
 
     
    
@@ -203,7 +199,8 @@ int main(void) {
    
 
     while (1) {
-       
+        imu.timeSinceLast =imuTime;
+   
         startPropFan();
         uint16_t distance_ir= adc_read(&flag.irFlag);
         uint16_t raw = distance_ir >> 6;
@@ -215,7 +212,7 @@ int main(void) {
 
         
 
-        drift_algorithm(&flag.imuStop);
+        
         
 
         if(flag.irFlag){
@@ -351,7 +348,7 @@ int main(void) {
 
             } 
                 
-                
+              //,mm,.  drift_algorithm(&flag.imuStop);
 
                 
             

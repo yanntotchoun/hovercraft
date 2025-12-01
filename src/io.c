@@ -14,7 +14,7 @@ static void ultrasonic_init(){
 }
 static void propFan_init(){
 
-  //P1 (PWM)
+  //P11 (PWM)
   DDRD |= (1 << DDD5);                  //set pind6 (propulsion fan) as output
   PORTD &= ~(1 <<PD5);                 //turn initial value of pind6 as off ie propulsion fan being turned off is the initial value DONT FORGET TO SET IT TO 1
 }
@@ -80,8 +80,7 @@ void triggerReadingUs(){
 
 
 void stopPropFan(){
-  PORTD &= ~(1 <<PD5);
-  
+  PORTD &= ~(1 <<PD5); 
 }
 
 void stopLiftFan(){

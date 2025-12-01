@@ -112,6 +112,7 @@ void drift_algorithm(volatile uint8_t *flag){
     imu.yaw -= gz_dps * imu.timeSinceLast;
 
     uint16_t pwm = yaw_to_pwm(imu.yaw);
+
     OCR1A = pwm;
     
    
