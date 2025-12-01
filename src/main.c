@@ -134,7 +134,7 @@ int main(void) {
 
     while (1) {
        
-       
+        startPropFan();
         uint16_t distance_ir= adc_read(&flag.irFlag);
         uint16_t raw = distance_ir >> 6;
             
