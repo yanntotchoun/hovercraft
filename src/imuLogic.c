@@ -7,7 +7,7 @@
 #define GYRO_SENS     65.5f      // LSB/deg/s for MPU6050 at ±500 dps
 #define PWM_CENTER    188.0f
 #define PWM_SPAN      80.0f
-#define Kp            0.25f      // proportional gain
+#define Kp            2.0f      // proportional gain
 
 extern volatile uint32_t imuTime;     // microseconds timestamp
 extern int16_t readImuGyroZ();
@@ -58,7 +58,7 @@ void drift_algorithm()
     if (yaw < -180) yaw += 360;
 
 // ANTI-SATURATION
-float correction = -Kp * yaw;
+float correction = Kp * yaw;
 
 // Limit correction, NOT total PWM
 if (correction >  PWM_SPAN) correction =  PWM_SPAN;

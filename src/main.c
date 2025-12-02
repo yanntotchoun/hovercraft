@@ -198,13 +198,18 @@ int main(void) {
     imu_calibration(100);//500 samples before it keeps going
     
     while (1) {
-      drift_algorithm();
+
+      startPropFan();
+      
+
+     
+
       
         flag.imuStop=0;
-        //startPropFan();
+
       
       
-       /*
+       
         uint16_t distance_ir= adc_read(&flag.irFlag);
         uint16_t raw = distance_ir >> 6;
             
@@ -273,7 +278,6 @@ int main(void) {
                 
 
                 if(distance_cm<=FRONT_WALL&& !flag.turnDone){
-                    flag.imuStop =1;//stop the imu during the turning logic
                     flag.turnDone=1; 
                     stopLiftFan();
                     stopPropFan();
@@ -341,25 +345,21 @@ int main(void) {
               
                     if(distance_l>distance_r){
                         turning_logic(SERVO_LEFT_INDEX);
+                        //flag here
 
                     }else{
                         turning_logic(SERVO_RIGHT_INDEX);
+                        //flag here
                     }
-                    
 
                      
-                     flag.imuStop =0;
-                     */
                     _delay_ms(20);
                 } 
-                return 0;
+                
 
             } 
         
-          
-
-              
-            
-
-
-         
+           return 0;
+          }
+          }     
+    
