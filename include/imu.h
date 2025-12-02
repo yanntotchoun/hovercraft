@@ -16,14 +16,10 @@
 #define REG_WHO_AM_I 0x75
 #define REG_DIG_LOW_PASS 0x1A // digital low pass filter
 
-void imu_init();
-uint16_t getImuAccX();
-uint16_t getImuAccY();
-uint16_t getImuAccZ();
-uint16_t getImuTemp();
-uint16_t readImuGyroX();
-uint16_t readImuGyroY();
-uint16_t readImuGyroZ();
+
+void imu_lowlevel_init(void);
+
+int16_t readImuGyroZ();
 
 
 

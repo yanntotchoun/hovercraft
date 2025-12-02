@@ -71,7 +71,7 @@ POSITIVE SIDE
 #define US_CENTER_INDEX     1
 #define US_RIGHT_INDEX      255
 
-#define BAR_TH  211 //SHOULD BE A PERFECT VALUE
+#define BAR_TH  500 //SHOULD BE A PERFECT VALUE
 #define FRONT_WALL 50            //
 
 
@@ -110,7 +110,7 @@ struct Ultrasonic {
  volatile struct Ultrasonic us= {0};//initialise every value to 0
 
 
-struct IMU_data imu;
+
 
 
   //CONSTANTS
@@ -188,21 +188,23 @@ int main(void) {
     io_init();                  // initialiastion of gpio
     adc3_init(0);               // no interrupts for adc
     int0_init(); 
-  //  timer2_init();
+    timer2_init();
 
     
    
     sei();                      //enable interrupts
-     /*
-    imu_init();    //initialising the imu  
+    
+    imu_lowlevel_init(); //initialising the imu  
     imu_calibration(100);//500 samples before it keeps going
-    imu.timeSinceLast =0.02f;//trying to put it herE
-    */
+    
     while (1) {
-       imu.timeSinceLast =imuTime;
+      drift_algorithm();
+      
         flag.imuStop=0;
-        startPropFan();
-       
+        //startPropFan();
+      
+      
+       /*
         uint16_t distance_ir= adc_read(&flag.irFlag);
         uint16_t raw = distance_ir >> 6;
             
@@ -211,7 +213,6 @@ int main(void) {
         if (cm > 80) cm = 80;
         if (cm < 10) cm = 10;
 
-       // drift_algorithm(&flag.imuStop);
 
         
         
@@ -324,7 +325,7 @@ int main(void) {
                      _delay_ms(400);
                     
                     
-                    /*
+                 
                       #ifdef DEBUG_US
                     usart_print("RIGHT SENSOR: ticks=");
                     usart_transmit_16int(ticks_r);
@@ -335,7 +336,7 @@ int main(void) {
                         
                     sweep_angle(SERVO_CENTER_INDEX);
                     _delay_ms(400);
-                        */
+                        
 
               
                     if(distance_l>distance_r){
@@ -346,21 +347,19 @@ int main(void) {
                     }
                     
 
-
+                     
                      flag.imuStop =0;
+                     */
+                    _delay_ms(20);
                 } 
+                return 0;
 
             } 
         
-                
-           // drift_algorithm(&flag.imuStop);
+          
 
-                
+              
             
 
-         _delay_ms(20);
-         
-    }
 
-    return 0;
-}
+         

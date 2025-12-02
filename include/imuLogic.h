@@ -27,14 +27,18 @@ extern const uint16_t Servo_angle[256];
     float timeSinceLast;//dt in yaw =yaw +angular velocity *dt
     
 } ;
-volatile uint32_t imuTime;
+extern volatile uint32_t imuTime;
 extern struct IMU_data imu;
 
-void imu_calibration();
-       
+void imu_init(void);
+void imu_calibration(uint16_t samples);
+void imu_update(void);
+float imu_get_yaw(void);
+void imu_reset_yaw(void);
+uint16_t yaw_to_pwm(float yaw);
 uint8_t yaw_to_idx(float y);
 
-void drift_algorithm(volatile uint8_t *flag);
+void drift_algorithm();
 
 
 #endif
