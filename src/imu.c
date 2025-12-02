@@ -37,7 +37,7 @@ uint16_t readImuGyroX(){
 uint16_t readImuGyroY(){
     return imu_read_word(0x45);
 }
-uint16_t readImuGyroZ(){
+int16_t readImuGyroZ(){
     return imu_read_word(0x47);
 }
 

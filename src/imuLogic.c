@@ -73,7 +73,7 @@ OCR1A = (uint16_t)pwm;
     // DEBUG
     usart_print("Yaw: ");
     usart_transmit_float(yaw);
-    usart_print("  PWM: ");
-    usart_transmit_float(pwm);
+    //usart_print("  PWM: ");
+    //usart_transmit_float(pwm);
     usart_print("\n");
 }

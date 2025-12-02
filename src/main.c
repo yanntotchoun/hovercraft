@@ -198,7 +198,7 @@ int main(void) {
     sei();                      //enable interrupts
 
     imu_init();    //initialising the imu  
-    imu_calibration(100);//500 samples before it keeps going
+    imu_calibration(500);//500 samples before it keeps going
     imu.timeSinceLast =0.02f;//trying to put it here
    
 
@@ -259,8 +259,7 @@ int main(void) {
                 if (distance_cm > FRONT_WALL + 5) {
                  flag.turnDone = 0;
                 }
-               
-                /*
+
                 #ifdef DEBUG_US
                 usart_print("Echo: ticks=");
                 usart_transmit_16int(ticks);
@@ -293,7 +292,7 @@ int main(void) {
                     
                      _delay_ms(400);
 
-                    /*
+                
                       #ifdef DEBUG_US
                     usart_print("LEFT SENSOR: ticks=");
                     usart_transmit_16int(ticks_l);
@@ -323,7 +322,7 @@ int main(void) {
                      _delay_ms(400);
                     
                     
-                    /*
+                
                       #ifdef DEBUG_US
                     usart_print("RIGHT SENSOR: ticks=");
                     usart_transmit_16int(ticks_r);

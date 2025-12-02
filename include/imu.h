@@ -23,7 +23,7 @@ uint16_t getImuAccZ();
 uint16_t getImuTemp();
 uint16_t readImuGyroX();
 uint16_t readImuGyroY();
-uint16_t readImuGyroZ();
+int16_t readImuGyroZ();
 
 
 
