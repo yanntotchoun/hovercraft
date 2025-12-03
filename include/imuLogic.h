@@ -38,7 +38,6 @@ void imu_reset_yaw(void);
 uint16_t yaw_to_pwm(float yaw);
 uint8_t yaw_to_idx(float y);
 
-void drift_algorithm();
-
-
+void drift_algorithm(uint8_t flag);
+void imu_reset_yaw(void);
 #endif

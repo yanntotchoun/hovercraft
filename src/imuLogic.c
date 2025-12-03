@@ -4,20 +4,21 @@
 #include <stdint.h>
 
 
-#define GYRO_SENS     65.5f      // LSB/deg/s for MPU6050 at ±500 dps
+#define GYRO_SENS     65.5f     
 #define PWM_CENTER    188.0f
 #define PWM_SPAN      80.0f
-#define Kp            2.0f      // proportional gain
+#define Kp            10.0f      // proportional gain
 
-extern volatile uint32_t imuTime;     // microseconds timestamp
+extern volatile uint32_t imuTime;     
 extern int16_t readImuGyroZ();
 extern void usart_print(const char*);
 extern void usart_transmit_float(float f);
 
 float gyro_bias = 0.0f;
 float yaw = 0.0f;
+static uint32_t lastTime = 0;
 
-// ---------------------- CALIBRATION ----------------------
+// CALIBRATION 
 void imu_calibration(uint16_t samples)
 {
     long sum = 0;
@@ -32,44 +33,47 @@ void imu_calibration(uint16_t samples)
 
     gyro_bias = (float)sum / samples;
     yaw = 0.0f;
-
+    lastTime  = imuTime;     
     usart_print("Calibration done\n");
 }
-
-// ---------------------- STABILIZATION ----------------------
-void drift_algorithm()
+void imu_reset_yaw(void)
 {
-    static uint32_t lastTime = 0;
+
+    yaw = 0.0f;
+    lastTime = imuTime;  // prevents a huge dt jump 
+}
+
+void drift_algorithm(uint8_t flag)
+{
+
+     if (flag) return;   
+   
 
     uint32_t now = imuTime;
-    float dt = (now - lastTime) * 1e-6f;  // seconds
+    float dt = (now - lastTime) * 1e-6f;  
     lastTime = now;
 
-    if (dt <= 0 || dt > 0.1f) dt = 0.02f;  // safety fallback
+    if (dt <= 0 || dt > 0.1f) dt = 0.02f;  
 
-    // READ GYRO
+
     int16_t raw = readImuGyroZ();
     float gz = (raw - gyro_bias) / GYRO_SENS;  // deg/s
 
-    // INTEGRATE YAW
     yaw += gz * dt;
 
     if (yaw > 180) yaw -= 360;
     if (yaw < -180) yaw += 360;
 
-// ANTI-SATURATION
+
 float correction = Kp * yaw;
 
-// Limit correction, NOT total PWM
+
 if (correction >  PWM_SPAN) correction =  PWM_SPAN;
 if (correction < -PWM_SPAN) correction = -PWM_SPAN;
 
     float pwm = PWM_CENTER + correction;
-    OCR1A = (uint16_t)pwm;
+   OCR1A = (uint16_t)(pwm + 0.5f);
 
-   OCR1A = (uint16_t)pwm;
-
-    // DEBUG
     usart_print("Yaw: ");
     usart_transmit_float(yaw);
     usart_print("  PWM: ");

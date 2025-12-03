@@ -11,6 +11,8 @@
 #define DEBUG_ADC 0  // Set to 1 for debugging prints, 0 to disable
 #define DEBUG_US 0  // Set to 1 for debugging prints, 0 to disable
 #define DEBUG 0 // Set to 1 for debugging prints, 0 to disable
+#define US_INVALID_CM 1000   // something larger than any real maze distance
+
 
 
 
@@ -71,8 +73,8 @@ POSITIVE SIDE
 #define US_CENTER_INDEX     1
 #define US_RIGHT_INDEX      255
 
-#define BAR_TH  500 //SHOULD BE A PERFECT VALUE
-#define FRONT_WALL 50            //
+#define BAR_TH  211 //SHOULD BE A PERFECT VALUE (211)
+#define FRONT_WALL 60        //
 
 
 
@@ -95,6 +97,7 @@ struct Flags{
   volatile uint8_t doneUS;//done with ultrasonic readings
   volatile uint8_t irFlag;//if IR is detected
   volatile uint8_t imuStop;//0 = stop  ;1=continue
+  volatile uint8_t scanningUS;
   volatile uint8_t turnDone;//0: no wall yet ready to be trigerred, 1:wall detected don't trigger again until  to prevent ultrasonic to turning multiple time inside of the algorith
 };
 
@@ -163,20 +166,26 @@ ISR(INT0_vect) {
 static void sweep_angle(uint16_t idx){
 
     //LEFT SCAN
-                flag.doneUS     = 0;
-                flag.int1_state = 0;
                 OCR1A = Servo_angle[idx];          
                  _delay_ms(500);
                
 
 }
+void prepare_ultrasonic()
+{
+    flag.doneUS = 0;
+    flag.int1_state = 0;
+    flag.ovf_count = 0;
+    us.distance_ticks = 0;
+}
+
 
 
 static void turning_logic(uint16_t idx){//////
     startLiftFan();
     startPropFan(); 
     sweep_angle(idx);
-    _delay_ms(400);//determining the turning
+    _delay_ms(1250);//determining the turning
     sweep_angle(SERVO_CENTER_INDEX);
     
 }
@@ -202,11 +211,13 @@ int main(void) {
       startPropFan();
       
 
-     
+        if (!flag.scanningUS && !flag.imuStop) {
+        drift_algorithm(0);
+      }
+
 
       
-        flag.imuStop=0;
-
+      
       
       
        
@@ -247,9 +258,8 @@ int main(void) {
         
         
         //FRONT SCAN
-        flag.doneUS     = 0;
-        flag.int1_state = 0;
-
+      
+        prepare_ultrasonic();
         triggerReadingUs(); 
         _delay_ms(60);      // give sensor time before we start checking
 
@@ -278,6 +288,8 @@ int main(void) {
                 
 
                 if(distance_cm<=FRONT_WALL&& !flag.turnDone){
+                    flag.scanningUS = 1;
+                    flag.imuStop=1;
                     flag.turnDone=1; 
                     stopLiftFan();
                     stopPropFan();
@@ -285,17 +297,20 @@ int main(void) {
                     
                     //LEFT SCAN
                     sweep_angle(US_LEFT_INDEX);
+                    prepare_ultrasonic();
                     triggerReadingUs(); 
                    // _delay_ms(60);      // give sensor time before we start checking
                     _delay_ms(300);// make it slower a bit to put less stress on the fan structure
                      timeout = 60000;
 
                    
-                   // while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
+                    while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
 
+           
+                  uint32_t ticks_l = (uint32_t)us.distance_ticks;
+                  distance_l = (uint16_t)((ticks_l * 4U) / 58U);
+                    
 
-                     uint16_t ticks_l = us.distance_ticks;
-                    distance_l = (ticks_l * 4U) / 58U;
                     
                      _delay_ms(400);
 
@@ -312,8 +327,9 @@ int main(void) {
                     //RIGHT SCAN
                 
                     sweep_angle(US_RIGHT_INDEX);
+                    prepare_ultrasonic();
                      triggerReadingUs(); 
-                    _delay_ms(60);      // give sensor time before we start checking
+                    _delay_ms(60);      // give sensor time before we start chec1king
                      _delay_ms(300);// make it slower a bit to put less stress on the fan structure
 
                       timeout = 60000;
@@ -321,7 +337,7 @@ int main(void) {
 
                     // Simple timeout to avoid hanging if no echo
                         
-                    //while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
+                  while (!flag.doneUS && timeout--) {}// if there's a reading this while statement will get completely bypassed
                     uint16_t ticks_r = us.distance_ticks;
                     distance_r =  (ticks_r * 4U) / 58U;
 
@@ -342,16 +358,31 @@ int main(void) {
                     _delay_ms(400);
                         
 
-              
-                    if(distance_l>distance_r){
-                        turning_logic(SERVO_LEFT_INDEX);
-                        //flag here
-
-                    }else{
+                                  
+                    if (distance_l == US_INVALID_CM && distance_r == US_INVALID_CM) {
+                        // No side info at all, pick a default (for example turn right)
                         turning_logic(SERVO_RIGHT_INDEX);
-                        //flag here
+
+                    } else if (distance_l == US_INVALID_CM) {
+                        // Only right is valid: left is blocked or no echo, so turn right
+                        turning_logic(SERVO_RIGHT_INDEX);
+
+                    } else if (distance_r == US_INVALID_CM) {
+                        // Only left is valid: right is blocked or no echo, so turn left
+                        turning_logic(SERVO_LEFT_INDEX);
+
+                    } else {
+                        // Both valid: choose side with more free space
+                        if (distance_l > distance_r) {
+                            turning_logic(SERVO_LEFT_INDEX);
+                        } else {
+                            turning_logic(SERVO_RIGHT_INDEX);
+                        }
                     }
 
+                        flag.imuStop = 0;
+                        flag.scanningUS = 0;
+                        imu_reset_yaw();
                      
                     _delay_ms(20);
                 } 
@@ -359,7 +390,8 @@ int main(void) {
 
             } 
         
-           return 0;
+        
           }
+          return 0;
           }     
     
